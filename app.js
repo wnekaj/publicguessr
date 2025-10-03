@@ -16,18 +16,27 @@ var QUESTIONS = [
 ];
 
 // ===== state =====
-var idx = 0, score = 0, revealed = new Set(), strikes = 0;
+var idx = 0, score = 0, revealed = new Set(), strikes = 0, endReason = "complete";
 var els = {
   questionText: document.getElementById("questionText"),
   board: document.getElementById("board"),
   input: document.getElementById("guessInput"),
   guessBtn: document.getElementById("guessBtn"),
-  passBtn: document.getElementById("passBtn"),
+  // legacy (kept for compatibility even if hidden)
   nextBtn: document.getElementById("nextBtn"),
   score: document.getElementById("score"),
+  // strike dots (now under input)
   strike1: document.getElementById("strike1"),
   strike2: document.getElementById("strike2"),
-  strike3: document.getElementById("strike3")
+  strike3: document.getElementById("strike3"),
+  // modal
+  modal: document.getElementById("modal"),
+  modalTitle: document.getElementById("modalTitle"),
+  modalBody: document.getElementById("modalBody"),
+  modalClose: document.getElementById("modalClose"),
+  modalBackdrop: document.getElementById("modalBackdrop"),
+  // date
+  dailyDate: document.getElementById("dailyDate")
 };
 
 function norm(s){ return s.toLowerCase().replace(/[^a-z0-9\s-]/g,"").trim(); }
@@ -51,16 +60,11 @@ function getDayKey(){
   return y+"-"+m+"-"+d;
 }
 
-function finishRound(){
-  if (DAILY_MODE){
-    els.input.disabled = true; els.guessBtn.disabled = true;
-    els.passBtn.classList.add("hidden"); els.nextBtn.classList.add("hidden");
-    try{ localStorage.setItem("played-"+DAY_KEY,"1"); }catch(_){}
-    var q = QUESTIONS[idx];
-    els.questionText.textContent = q.question + " - All answers revealed! Come back tomorrow.";
-  } else {
-    els.nextBtn.classList.remove("hidden");
-  }
+function setDailyDate(){
+  if (!els.dailyDate) return;
+  var now = new Date();
+  var fmt = new Intl.DateTimeFormat("en-GB", { timeZone: DAILY_TZ, day: "numeric", month: "short", year: "numeric" });
+  els.dailyDate.textContent = "Daily · " + fmt.format(now) + " · Europe/London";
 }
 
 // ----- No-repeat engine (auto-resets when the question set changes) -----
@@ -109,26 +113,72 @@ function pickIndexNoRepeat(map, todayKey, anchorKey){
   return map[pos].idx;
 }
 
+// ===== Modal helpers =====
+function showModal(title, message){
+  if (!els.modal) return;
+  els.modalTitle.textContent = title || "";
+  els.modalBody.textContent = message || "";
+  els.modal.classList.remove("hidden");
+}
+function hideModal(){
+  if (!els.modal) return;
+  els.modal.classList.add("hidden");
+}
+if (els.modalClose) els.modalClose.addEventListener("click", hideModal);
+if (els.modalBackdrop) els.modalBackdrop.addEventListener("click", hideModal);
+document.addEventListener("keydown", function(e){
+  if (e.key === "Escape") hideModal();
+});
+
 // ===== UI =====
+function updateStrikes(){
+  var dots = [els.strike1, els.strike2, els.strike3];
+  for (var i=0;i<dots.length;i++){
+    if (!dots[i]) continue;
+    dots[i].classList.toggle("active", strikes > i);
+    dots[i].style.opacity = (strikes > i ? 1 : 0.25);
+  }
+}
+
 function renderQuestion(){
   var q = QUESTIONS[idx];
+  endReason = "complete";
   els.questionText.textContent = q.question;
   els.board.innerHTML = "";
   revealed = new Set();
   strikes = 0; updateStrikes();
-  els.nextBtn.classList.add("hidden");
+  if (els.nextBtn) els.nextBtn.classList.add("hidden");
   els.input.disabled = false; els.guessBtn.disabled = false;
   els.input.value = ""; try{ els.input.focus(); }catch(_){}
-  els.score.textContent = "0%"; // reset HUD score
+  if (els.score) els.score.textContent = "0%"; // if present
 
   var count = Math.min(q.answers.length, MAX_ANSWERS);
   for (var i=0;i<count;i++){
     var tile = document.createElement("div");
     tile.className = "tile";
     tile.setAttribute("data-index", String(i));
-    // include .fill layer for the left->right reveal
     tile.innerHTML = '<div class="fill"></div><div class="tile-content"><span class="answer">— — —</span><span class="points">??</span></div>';
     els.board.appendChild(tile);
+  }
+}
+
+function finishRound(reason){
+  // disable inputs
+  els.input.disabled = true; els.guessBtn.disabled = true;
+  if (els.nextBtn) els.nextBtn.classList.add("hidden");
+
+  var q = QUESTIONS[idx];
+  // set headline text
+  if (reason === "failed"){
+    els.questionText.textContent = q.question + " - Out of guesses!";
+    showModal("Out of guesses", "All answers have been revealed. Come back tomorrow!");
+  } else {
+    els.questionText.textContent = q.question + " - All answers revealed!";
+    showModal("Nice!", "You revealed every answer. Come back tomorrow for a new question!");
+  }
+
+  if (DAILY_MODE){
+    try{ localStorage.setItem("played-"+DAY_KEY, "1"); }catch(_){}
   }
 }
 
@@ -149,51 +199,41 @@ function reveal(i){
     if (!revealed.has(i)){
       revealed.add(i);
       score += ans.score;
-      els.score.textContent = score + "%";
+      if (els.score) els.score.textContent = score + "%";
     }
     fill.removeEventListener("transitionend", onDone);
 
-    // End-of-round check
+    // End-of-round check — if we revealed all tiles, end with the stored reason
     var totalToReveal = Math.min(q.answers.length, els.board.children.length);
-    if (revealed.size >= totalToReveal) finishRound();
+    if (revealed.size >= totalToReveal) finishRound(endReason);
   };
 
   fill.addEventListener("transitionend", onDone);
-  // Kick the animation next frame
   requestAnimationFrame(function(){ fill.style.width = ans.score + "%"; });
-}
-
-function updateStrikes(){
-  [els.strike1,els.strike2,els.strike3].forEach(function(el,i){
-    el.style.opacity = (strikes > i ? 1 : 0.25);
-  });
 }
 
 function handleGuess(){
   var guess = norm(els.input.value); if (!guess) return;
   var q = QUESTIONS[idx], foundIndex = -1;
+
   q.answers.forEach(function(ans,i){
     if (foundIndex !== -1) return;
     if (revealed.has(i)) return;
     var candidates = [ans.text].concat(ans.aliases||[]).map(norm);
     if (candidates.indexOf(guess) !== -1) foundIndex = i;
   });
+
   if (foundIndex !== -1){
     reveal(foundIndex); els.input.value = ""; try{ els.input.focus(); }catch(_){}
   } else {
     strikes = Math.min(strikes+1,3); updateStrikes();
     if (strikes >= 3){
+      // mark failure; revealing the last tile will call finishRound("failed")
+      endReason = "failed";
       q.answers.forEach(function(_,i){ if (!revealed.has(i)) reveal(i); });
-      finishRound();
     }
   }
 }
-
-function nextQuestion(){ idx = (idx+1) % QUESTIONS.length; renderQuestion(); }
-els.guessBtn.addEventListener("click", handleGuess);
-els.input.addEventListener("keydown", function(e){ if (e.key === "Enter") handleGuess(); });
-els.passBtn.addEventListener("click", nextQuestion);
-els.nextBtn.addEventListener("click", nextQuestion);
 
 // ===== Google Sheets loader (CSV first, GViz JSONP fallback) =====
 var SHEET_PUBLISHED_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6_gEjPFb7k4tHmguxmp_4qHlObR7JAY5V1UtktCGS0BbfoehJd13fYv5iI4qZ1HjlEwkUxGqM0Aod/pubhtml";
@@ -315,23 +355,16 @@ function loadQuestions(){
       var sig  = poolSignature(qMap);
       var anchor = getSeasonAnchor(DAY_KEY, sig);
       idx = pickIndexNoRepeat(qMap, DAY_KEY, anchor);
-      els.passBtn.classList.add("hidden");
-      els.nextBtn.classList.add("hidden");
     }
+    setDailyDate();
     renderQuestion();
   }).catch(function(err){
     console.error("Init failed", err);
+    setDailyDate();
     renderQuestion();
   });
 })();
 
-(function setDailyDate(){
-  var el = document.getElementById("dailyDate");
-  if (!el) return;
-  var tz = (typeof DAILY_TZ === "string" && DAILY_TZ) ? DAILY_TZ : "Europe/London";
-  var now = new Date();
-  var fmt = new Intl.DateTimeFormat("en-GB", {
-    timeZone: tz, day: "numeric", month: "short", year: "numeric"
-  });
-  el.textContent = "Daily · " + fmt.format(now) + " · Europe/London";
-})();
+// ===== events =====
+els.guessBtn.addEventListener("click", handleGuess);
+els.input.addEventListener("keydown", function(e){ if (e.key === "Enter") handleGuess(); });
