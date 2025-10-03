@@ -324,3 +324,14 @@ function loadQuestions(){
     renderQuestion();
   });
 })();
+
+(function setDailyDate(){
+  var el = document.getElementById("dailyDate");
+  if (!el) return;
+  var tz = (typeof DAILY_TZ === "string" && DAILY_TZ) ? DAILY_TZ : "Europe/London";
+  var now = new Date();
+  var fmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz, day: "numeric", month: "short", year: "numeric"
+  });
+  el.textContent = "Daily · " + fmt.format(now) + " · Europe/London";
+})();
