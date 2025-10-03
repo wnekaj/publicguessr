@@ -130,6 +130,63 @@ function finishRound(){
     els.nextBtn.classList.remove("hidden");
   }
 }
+// ----- No-repeat engine (auto-resets when the question set changes) -----
+function ymdFromKey(key){ var p = key.split("-"); return { y:+p[0], m:+p[1], d:+p[2] }; }
+function daysFromYMD(y,m,d){ return Math.floor(Date.UTC(y, m-1, d) / 86400000); }
+function daysSince(aKey, bKey){
+  var a = ymdFromKey(aKey), b = ymdFromKey(bKey);
+  return daysFromYMD(b.y,b.m,b.d) - daysFromYMD(a.y,a.m,a.d);
+}
+function normalizeId(s){ return String(s||"").trim().toLowerCase(); }
+
+// Build a stable map [{ id, idx }] sorted by id, so order doesn't depend on CSV order
+function buildQuestionMap(){
+  var arr = [];
+  for (var i=0;i<QUESTIONS.length;i++){
+    var id = normalizeId(QUESTIONS[i].question);
+    // prevent duplicates if the same question text appears twice
+    if (!arr.some(function(x){ return x.id === id; })) arr.push({ id:id, idx:i });
+  }
+  arr.sort(function(a,b){ return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0); });
+  return arr;
+}
+
+// Signature of the pool to detect when the set changed (e.g., you replaced all questions)
+function poolSignature(map){
+  var ids = map.map(function(x){ return x.id; });
+  return ids.join("|"); // simple, readable signature
+}
+
+// Get or set the "season anchor" date in localStorage tied to this pool signature
+function getSeasonAnchor(todayKey, sig){
+  var savedSig = null, savedAnchor = null;
+  try {
+    savedSig   = localStorage.getItem("ff_pool_sig");
+    savedAnchor= localStorage.getItem("ff_anchor");
+  } catch(e){}
+  if (savedSig !== sig){
+    // New pool -> reset season to today and store new signature
+    try {
+      localStorage.setItem("ff_pool_sig", sig);
+      localStorage.setItem("ff_anchor", todayKey);
+    } catch(e){}
+    return todayKey;
+  }
+  if (!savedAnchor){
+    try { localStorage.setItem("ff_anchor", todayKey); } catch(e){}
+    return todayKey;
+  }
+  return savedAnchor;
+}
+
+// Pick today's question index with no repeats until the whole pool is used
+function pickIndexNoRepeat(map, todayKey, anchorKey){
+  var total = map.length;
+  if (!total) return 0;
+  var offset = daysSince(anchorKey, todayKey);
+  var pos = ((offset % total) + total) % total; // safe modulo
+  return map[pos].idx; // map back to QUESTIONS index
+}
 
 // ===== Google Sheets loader (CSV first, GViz JSONP fallback) =====
 var SHEET_PUBLISHED_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6_gEjPFb7k4tHmguxmp_4qHlObR7JAY5V1UtktCGS0BbfoehJd13fYv5iI4qZ1HjlEwkUxGqM0Aod/pubhtml";
@@ -245,7 +302,20 @@ function loadQuestions(){
     if (data && data.length){
       if (data !== QUESTIONS){ while (QUESTIONS.length) QUESTIONS.pop(); data.forEach(function(q){ QUESTIONS.push(q); }); }
     }
-    if (DAILY_MODE){ DAY_KEY = getDayKey(); idx = dailyIndex(QUESTIONS.length, DAY_KEY); els.passBtn.classList.add("hidden"); els.nextBtn.classList.add("hidden"); }
+if (DAILY_MODE){
+  DAY_KEY = getDayKey();
+
+  // Build stable pool, detect changes, and pick today's index without repeats
+  var qMap = buildQuestionMap();
+  var sig  = poolSignature(qMap);
+  var anchor = getSeasonAnchor(DAY_KEY, sig);
+  idx = pickIndexNoRepeat(qMap, DAY_KEY, anchor);
+
+  // Daily UX
+  els.passBtn.classList.add("hidden");
+  els.nextBtn.classList.add("hidden");
+}
+
     renderQuestion();
   }).catch(function(err){
     console.error("Init failed", err);
