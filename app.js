@@ -171,10 +171,10 @@ function finishRound(reason){
   // set headline text
   if (reason === "failed"){
     els.questionText.textContent = q.question + " - Out of guesses!";
-    showModal("Out of guesses", "All answers have been revealed. Come back tomorrow!");
+    showModal("You've run out of guesses", "Try again tomorrow.");
   } else {
     els.questionText.textContent = q.question + " - All answers revealed!";
-    showModal("Nice!", "You revealed every answer. Come back tomorrow for a new question!");
+    showModal("Nice!", "You guessed every answer correctly. Come back tomorrow for a new question.");
   }
 
   if (DAILY_MODE){
