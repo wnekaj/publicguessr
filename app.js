@@ -42,14 +42,27 @@ var els = {
 function norm(s){ return s.toLowerCase().replace(/[^a-z0-9\s-]/g,"").trim(); }
 
 // ===== Daily Mode =====
-const DAILY_MODE = true;          // set false to disable daily mode
-const DAILY_TZ   = "Europe/London";
-const MAX_ANSWERS = 5;            // 5 stacked tiles (Wordle-ish)
+const DAILY_MODE = true;
+const DAILY_TZ   = "Europe/London"; // valid IANA tz
+const MAX_ANSWERS = 5;
+
+// Fallback if DAILY_TZ ever gets set to something invalid
+function safeTZ(){
+  var tz = DAILY_TZ || "Europe/London";
+  try {
+    // Will throw if tz is invalid
+    new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(new Date());
+    return tz;
+  } catch (e) {
+    return "Europe/London";
+  }
+}
+
 var DAY_KEY = null;
 
 function getDayKey(){
   var now = new Date();
-  var fmt = new Intl.DateTimeFormat("en-GB",{timeZone:DAILY_TZ,year:"numeric",month:"2-digit",day:"2-digit"});
+var fmt = new Intl.DateTimeFormat("en-GB", { timeZone: safeTZ(), year:"numeric", month:"2-digit", day:"2-digit" });
   var parts = fmt.formatToParts(now);
   var y="",m="",d="";
   for (var i=0;i<parts.length;i++){
@@ -63,7 +76,7 @@ function getDayKey(){
 function setDailyDate(){
   if (!els.dailyDate) return;
   var now = new Date();
-  var fmt = new Intl.DateTimeFormat("en-GB", { timeZone: DAILY_TZ, day: "numeric", month: "short", year: "numeric" });
+var fmt = new Intl.DateTimeFormat("en-GB", { timeZone: safeTZ(), day: "numeric", month: "short", year: "numeric" });
   els.dailyDate.textContent = "Daily · " + fmt.format(now) + "Europe/London";
 }
 
