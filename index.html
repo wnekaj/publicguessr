@@ -5,110 +5,91 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Public Guessr</title>
   <style>
-    :root {
-      --bg: #fff7ed;      /* orange-50 */
-      --card: #ffffff;    /* white */
-      --muted: #6b7280;   /* slate-500 */
-      --text: #0f172a;    /* slate-900 */
-      --accent: #f59e0b;  /* amber-500 */
-      --success: #10b981; /* emerald-500 */
-      --danger: #ef4444;  /* red-500 */
+    :root{
+      --bg:#f9fafb;
+      --card:#ffffff;
+      --muted:#6b7280;
+      --text:#0b0f19;
+      --accent:#fb923c;   /* lighter orange */
+      --accent-600:#f59e0b;
     }
-    html, body {
-      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-      background: linear-gradient(180deg, #ffffff, var(--bg));
-      color: var(--text);
-      display: grid; place-items: center;
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+      background:linear-gradient(180deg,#ffffff,var(--bg));
+      color:var(--text);
+      display:grid;place-items:start center;min-height:100vh;
     }
-    body {
-      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-      background: radial-gradient(1200px 600px at 50% -10%, #1f2937, var(--bg));
-      color: var(--text);
-      display: grid; place-items: center;
+    .app{width:min(520px,92vw);margin-top:24px}
+    .sitebar{height:56px;display:flex;align-items:center;justify-content:center;width:100%;margin-bottom:12px}
+    .brand{font-weight:800;letter-spacing:.3px;color:var(--text)}
+    .card{background:var(--card);border:1px solid #e5e7eb;border-radius:16px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.06)}
+    .title{font-size:clamp(22px,3.5vw,30px);margin:6px 0 2px;font-weight:800;letter-spacing:.2px;text-align:center}
+    .datebar{color:var(--muted);text-align:center;font-size:12px;margin:0 0 6px}
+    .subtitle{color:var(--muted);margin:0 0 12px;text-align:center;font-size:14px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    input[type="text"]{
+      flex:1 1 280px;font-size:18px;padding:12px 14px;border-radius:12px;border:1px solid #e5e7eb;background:#fff;color:var(--text);
+      outline:none;transition:box-shadow .2s ease,border-color .2s ease
     }
-    .app { width: min(520px, 92vw); }
-    .card {
-      background: #ffffff;
-      border: 1px solid rgba(15,23,42,0.08);
-      border-radius: 16px;
-      padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+    input[type="text"]:focus{border-color:#fdba74;box-shadow:0 0 0 4px rgba(249,115,22,.15)}
+    button{
+      border:none;border-radius:12px;padding:12px 16px;font-size:16px;font-weight:700;cursor:pointer;
+      background:linear-gradient(180deg,#fde68a,var(--accent));color:#0b0b0b;
+      transition:transform .05s ease-in-out,box-shadow .2s ease;user-select:none;box-shadow:0 4px 10px rgba(0,0,0,.08)
     }
-    .title {
-      font-size: clamp(22px, 3.5vw, 34px);
-      margin: 6px 0 2px; font-weight: 800; letter-spacing: 0.3px; color: var(--text);
-      text-align: center;
-    }
-    .subtitle { color: var(--muted); margin: 0 0 16px; text-align: center; }
-    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-    input[type="text"] {
-      flex: 1 1 280px; font-size: 18px; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(15,23,42,0.12);
-      background: #ffffff; color: var(--text); outline: none;
-    }
-    input[type="text"]::placeholder { color: #9ca3af; }
-    button {
-      border: none; border-radius: 12px; padding: 12px 16px; font-size: 16px; font-weight: 700; cursor: pointer;
-      background: linear-gradient(180deg, #fde68a, #fb923c); color: #0b0b0b;
-      transition: transform 0.05s ease-in-out; user-select: none;
-    }
-    button.secondary { background: linear-gradient(180deg, #fde68a, #f59e0b); color: #0b0b0b; }
-    button.ghost { background: transparent; border: 1px dashed rgba(15,23,42,0.2); color: var(--text); }
-    button:active { transform: translateY(1px); }
+    button:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(0,0,0,.12)}
+    button:active{transform:translateY(0)}
+    button.ghost{background:transparent;border:1px dashed rgba(15,23,42,.2);color:var(--text)}
+    .board{display:grid;grid-template-columns:1fr;gap:10px;margin:16px 0}
 
-    .board { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 18px 0; }
-    .tile {
-      background: #ffffff; border: 1px solid rgba(15,23,42,0.12); border-radius: 12px; padding: 12px 14px;
-      display: flex; align-items: center; justify-content: space-between; min-height: 48px; font-weight: 800;
+    /* Tiles (shorter height) */
+    .tile{
+      position:relative;overflow:hidden;
+      background:#fff;border:1px solid #e5e7eb;border-radius:12px;
+      padding:12px 14px;min-height:48px;
+      display:flex;align-items:center;justify-content:space-between;font-weight:800;
+      transition:box-shadow .2s ease,border-color .2s ease
     }
-    .tile.revealed { background: #fff7ed; border-color: #fdba74; }
-    .answer { text-transform: uppercase; letter-spacing: 0.5px; }
-    .points { color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: 0.2px; }
-
-    .hud { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .score { font-weight: 800; font-size: 18px; }
-    .strikes { display: flex; gap: 6px; align-items: center; }
-    .strike {
-      width: 22px; height: 22px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15);
-      display: grid; place-items: center; font-weight: 900; color: var(--danger);
-      background: rgba(255,0,0,0.08);
+    .tile .fill{
+      position:absolute;left:0;top:0;height:100%;width:0%;
+      background:rgba(249,115,22,.18);transition:width 850ms ease-out
     }
-    .pill { font-size: 12px; padding: 6px 10px; border: 1px solid rgba(255,255,255,0.12); border-radius: 999px; color: var(--muted); }
-
-    details.howto { margin-top: 12px; }
-    details.howto summary { cursor: pointer; color: var(--accent); font-weight: 700; }
-    .footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 10px; }
-    .hidden { display: none !important; }
-
-    @media (max-width: 640px) {
-      .board { grid-template-columns: 1fr; }
+    .tile .tile-content{
+      position:relative;z-index:2;width:100%;
+      display:flex;align-items:center;justify-content:space-between
     }
-  .sitebar{ height:56px; display:flex; align-items:center; justify-content:center; width:100%; margin-bottom:12px; }
-    .brand{ font-weight:800; letter-spacing:0.3px; color: var(--text); }
-    .datebar{ color:#6b7280; text-align:center; font-size:12px; margin:0 0 6px; }
-    /* Hide score & next button (kept in DOM to avoid JS errors) */
-    .hud .score{ display:none; }
-    #nextBtn{ display:none !important; }
+    .tile.revealed{background:#fff4e6;border-color:#fdba74;box-shadow:0 6px 16px rgba(249,115,22,.12)}
+    .answer{text-transform:uppercase;letter-spacing:.5px}
+    .points{color:#f97316;font-variant-numeric:tabular-nums;letter-spacing:.2px;margin-left:8px}
+
+    /* HUD: keep strikes, hide score + next button */
+    .hud{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+    .hud .score{display:none}
+    #nextBtn{display:none!important}
   </style>
 </head>
 <body>
   <div class="app">
     <header class="sitebar"><div class="brand">Daily poll guessing game</div></header>
+
     <div class="card">
-      <div class="pill">Prototype</div>
       <h1 class="title">Public Guessr</h1>
       <div class="datebar" id="dailyDate"></div>
-      <p class="subtitle" id="questionText">Loading…</p>
+      <p class="subtitle" id="questionText">Loading...</p>
 
-      <div class="row" style="margin-bottom: 8px;">
-        <input id="guessInput" type="text" placeholder="Type an answer…" autocomplete="off" />
+      <div class="row" style="margin-bottom:8px;">
+        <input id="guessInput" type="text" placeholder="Type your guess..." autocomplete="off" />
         <button id="guessBtn">Submit</button>
-        <button id="passBtn" class="ghost" title="Skip to next question">Pass</button>
+        <button id="passBtn" class="ghost" title="Skip">Pass</button>
       </div>
 
       <div class="board" id="board"></div>
 
       <div class="hud">
-        <div class="score">Score: <span id="score">0</span></div>
-        <div class="strikes" aria-live="polite">
+        <div class="score">Score: <span id="score">0%</span></div>
+        <div class="strikes" aria-live="polite" style="display:flex;gap:6px;align-items:center;">
           <span>Strikes:</span>
           <div id="strike1" class="strike">×</div>
           <div id="strike2" class="strike">×</div>
@@ -116,389 +97,10 @@
         </div>
         <button id="nextBtn" class="secondary hidden">Next question</button>
       </div>
-
-      <details class="howto"><summary>How do I add my polling data?</summary>
-        <div style="margin-top: 10px; color: var(--text);">
-          <ol>
-            <li>Replace the <code>QUESTIONS</code> array in the script with your own questions and answers (top 5–8). Use <code>score</code> as the % from your poll.</li>
-            <li>Optionally, publish a Google Sheet as CSV and fetch it (see commented code near <code>loadQuestions()</code>).</li>
-            <li>Re-deploy by uploading this single file to Netlify / Vercel / GitHub Pages.</li>
-          </ol>
-        </div>
-      </details>
     </div>
-
-    
   </div>
 
-  <script>
-    // =====================
-    // 1) SAMPLE DATA (edit me)
-    // =====================
-    // Each question has an array of answers. Include optional aliases for more forgiving matching.
-    const QUESTIONS = [
-      {
-        question: "Name a bill people most worry about going up",
-        answers: [
-          { text: "Energy", aliases: ["gas", "electric", "electricity", "power", "heating"], score: 42 },
-          { text: "Rent", aliases: ["renting"], score: 18 },
-          { text: "Mortgage", aliases: ["mortgages"], score: 14 },
-          { text: "Water", aliases: ["water rates"], score: 10 },
-          { text: "Council Tax", aliases: ["council", "local tax"], score: 9 },
-          { text: "Food", aliases: ["groceries", "supermarket"], score: 5 }
-        ]
-      },
-      {
-        question: "Name something water companies should be most accountable for",
-        answers: [
-          { text: "Sewage spills", aliases: ["sewage", "discharges", "overflows"], score: 39 },
-          { text: "Water quality", aliases: ["clean water", "drinking water"], score: 26 },
-          { text: "Leak reduction", aliases: ["leaks", "pipe leaks"], score: 16 },
-          { text: "Bill fairness", aliases: ["fair bills", "pricing"], score: 11 },
-          { text: "Investment", aliases: ["infrastructure", "capital"], score: 8 }
-        ]
-      }
-    ];
-
-    // =====================
-    // 2) STATE
-    // =====================
-    let idx = 0;
-    let score = 0;
-    let revealed = new Set();
-    let strikes = 0;
-
-    const els = {
-      questionText: document.getElementById('questionText'),
-      board: document.getElementById('board'),
-      input: document.getElementById('guessInput'),
-      guessBtn: document.getElementById('guessBtn'),
-      passBtn: document.getElementById('passBtn'),
-      nextBtn: document.getElementById('nextBtn'),
-      score: document.getElementById('score'),
-      strike1: document.getElementById('strike1'),
-      strike2: document.getElementById('strike2'),
-      strike3: document.getElementById('strike3'),
-    };
-
-    // =====================
-    // 2.5) DAILY MODE
-    // =====================
-    const DAILY_MODE = true;               // set false to go back to multi-question mode
-    const DAILY_TZ = 'Europe/London';      // your timezone
-    let DAY_KEY = null;                    // e.g. 2025-10-03
-
-    function getDayKey() {
-      const now = new Date();
-      const parts = new Intl.DateTimeFormat('en-GB', { timeZone: DAILY_TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
-      const y = parts.find(p => p.type === 'year').value;
-      const m = parts.find(p => p.type === 'month').value;
-      const d = parts.find(p => p.type === 'day').value;
-      return `${y}-${m}-${d}`;
-    }
-    function dailyIndex(total, key) {
-      let h = 0; for (let i = 0; i < key.length; i++) { h = (h * 31 + key.charCodeAt(i)) | 0; }
-      h = Math.abs(h);
-      return total ? (h % total) : 0;
-    }
-    function finishRound() {
-      if (DAILY_MODE) {
-        els.input.disabled = true; els.guessBtn.disabled = true;
-        els.passBtn.classList.add('hidden'); els.nextBtn.classList.add('hidden');
-        try { localStorage.setItem('played-' + DAY_KEY, '1'); } catch (e) {}
-        const q = QUESTIONS[idx];
-        els.questionText.textContent = q.question + ' — All answers revealed! Come back tomorrow.';
-      } else {
-        finishRound();
-      }
-    }
-
-    // =====================
-    // 3) HELPERS
-    // =====================
-    const norm = s => s.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim();
-
-    function renderQuestion() {
-      const q = QUESTIONS[idx];
-      els.questionText.textContent = q.question;
-      els.board.innerHTML = '';
-      revealed = new Set();
-      strikes = 0;
-      updateStrikes();
-      els.nextBtn.classList.add('hidden');
-      els.input.value = '';
-      els.input.focus();
-
-      const count = Math.min(q.answers.length, 8);
-      for (let i = 0; i < count; i++) {
-        const tile = document.createElement('div');
-        tile.className = 'tile';
-        tile.dataset.index = i;
-        tile.innerHTML = `<span class="answer">— — —</span><span class="points">??</span>`;
-        els.board.appendChild(tile);
-      }
-    }
-
-    function reveal(i) {
-      const q = QUESTIONS[idx];
-      const ans = q.answers[i];
-      const tile = [...els.board.children][i];
-      if (!tile || !ans) return;
-      tile.classList.add('revealed');
-      tile.querySelector('.answer').textContent = ans.text;
-      tile.querySelector('.points').textContent = ans.score;
-      revealed.add(i);
-      score += ans.score;
-      els.score.textContent = score;
-
-      // If all revealed, allow next question
-      const totalToReveal = Math.min(q.answers.length, els.board.children.length);
-      if (revealed.size >= totalToReveal) {
-        finishRound();
-      }
-    }
-
-    function updateStrikes() {
-      [els.strike1, els.strike2, els.strike3].forEach((el, i) => {
-        el.style.opacity = strikes > i ? 1 : 0.25;
-      });
-    }
-
-    function handleGuess() {
-      const guess = norm(els.input.value);
-      if (!guess) return;
-      const q = QUESTIONS[idx];
-
-      // Find matching unrevealed answer
-      let foundIndex = -1;
-      q.answers.forEach((ans, i) => {
-        if (foundIndex !== -1) return; // already found
-        if (revealed.has(i)) return;
-        const candidates = [ans.text, ...(ans.aliases || [])].map(norm);
-        if (candidates.includes(guess)) foundIndex = i;
-      });
-
-      if (foundIndex !== -1) {
-        reveal(foundIndex);
-        els.input.value = '';
-        els.input.focus();
-      } else {
-        // wrong answer => strike
-        strikes = Math.min(strikes + 1, 3);
-        updateStrikes();
-        if (strikes >= 3) {
-          // reveal the rest
-          q.answers.forEach((_, i) => { if (!revealed.has(i)) reveal(i); });
-          finishRound();
-        }
-      }
-    }
-
-    function nextQuestion() {
-      idx = (idx + 1) % QUESTIONS.length;
-      renderQuestion();
-    }
-
-    // =====================
-    // 4) OPTIONAL: load questions from a Google Sheet (CSV)
-    // Paste a Google Sheets **Publish to web** link. This loader will:
-    //  - Convert `.../pubhtml` → CSV and try to fetch it (may fail due to CORS).
-    //  - If CSV fetch fails, it will retry via Google Visualization JSONP (no CORS needed).
-    // =====================
-    const SHEET_PUBLISHED_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6_gEjPFb7k4tHmguxmp_4qHlObR7JAY5V1UtktCGS0BbfoehJd13fYv5iI4qZ1HjlEwkUxGqM0Aod/pubhtml";
-
-    // --- Simple on-page debug helper ---
-    function debug(msg) {
-      console.log(msg);
-      const el = document.getElementById('questionText');
-      if (el && el.textContent === 'Loading…') {
-        el.textContent = 'Loading…'; // keep the text but allow console logs
-      }
-    }
-
-    // --- Robust CSV parser that handles quotes and commas ---
-    function parseCSV(text) {
-      const rows = [];
-      let row = [], field = "", inQuotes = false;
-      for (let i = 0; i < text.length; i++) {
-        const c = text[i];
-        if (inQuotes) {
-          if (c === '"') {
-            if (text[i + 1] === '"') { field += '"'; i++; } else { inQuotes = false; }
-          } else { field += c; }
-        } else {
-          if (c === '"') inQuotes = true;
-          else if (c === ',') { row.push(field); field = ""; }
-          else if (c === '
-') { row.push(field); rows.push(row); row = []; field = ""; }
-          else if (c === '
-') { /* ignore */ }
-          else { field += c; }
-        }
-      }
-      if (field.length || row.length) { row.push(field); rows.push(row); }
-      return rows;
-    }
-
-    // Try direct CSV fetch first (may be blocked by CORS depending on Google response).
-    async function loadViaCSV(publishedUrl) {
-      if (!publishedUrl) throw new Error('No published URL');
-      let csvUrl = publishedUrl;
-      // Normalize common publish URLs to CSV
-      if (/\/pubhtml(\?|$)/.test(csvUrl)) {
-        // preserve any gid parameter if present
-        const gidMatch = csvUrl.match(/gid=([0-9]+)/);
-        const gidParam = gidMatch ? `&gid=${gidMatch[1]}` : '';
-        csvUrl = csvUrl.replace(/\/pubhtml(\?.*)?$/, `/pub?output=csv${gidParam}`);
-      } else if (/\/pub(\?|$)/.test(csvUrl) && !/output=csv/.test(csvUrl)) {
-        csvUrl = csvUrl.replace(/\/pub(\?.*)?$/, '/pub?output=csv');
-      }
-      debug('CSV URL → ' + csvUrl);
-
-      const resp = await fetch(csvUrl, { cache: 'no-store', mode: 'cors' });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const text = await resp.text();
-      const rows = parseCSV(text);
-      if (!rows.length) throw new Error('Empty CSV');
-      return rows;
-    }
-
-    // Fallback: Google Visualization JSONP (bypasses CORS).
-    // Returns an array-of-arrays like CSV rows.
-    function loadViaGvizJSONP(publishedUrl, timeoutMs = 8000) {
-      return new Promise((resolve, reject) => {
-        try {
-          // Build a gviz url. Works with /d/<id>/... or /d/e/<published-id>/...
-          let base = publishedUrl.replace(/\/pubhtml(\?.*)?$/, '');
-          // If the URL already contains '/gviz/tq', leave it; else append.
-          if (!/\/gviz\/tq/.test(base)) {
-            base = base.replace(/\/edit(\?.*)?$/, '');
-            base = base.endsWith('/') ? base.slice(0, -1) : base;
-            base += '/gviz/tq';
-          }
-          const gidMatch = publishedUrl.match(/gid=([0-9]+)/);
-          const gid = gidMatch ? gidMatch[1] : '';
-          const gvizUrl = base + `?tqx=out:json${gid ? `&gid=${gid}` : ''}`;
-          debug('GViz URL → ' + gvizUrl);
-
-          const cbName = 'gviz_cb_' + Math.random().toString(36).slice(2);
-          const timer = setTimeout(() => {
-            cleanup();
-            reject(new Error('GViz timeout'));
-          }, timeoutMs);
-
-          function cleanup(){
-            clearTimeout(timer);
-            if (script && script.parentNode) script.parentNode.removeChild(script);
-            try { delete window[cbName]; } catch(_) { window[cbName] = undefined; }
-          }
-
-          window[cbName] = function(response){
-            cleanup();
-            try {
-              if (!response || !response.table) throw new Error('No table in GViz response');
-              const cols = response.table.cols.map(c => (c && c.label ? String(c.label).trim().toLowerCase() : ''));
-              const qi = cols.indexOf('question');
-              const ai = cols.indexOf('answer');
-              const si = cols.indexOf('score');
-              const li = cols.indexOf('aliases');
-              if (qi < 0 || ai < 0 || si < 0) throw new Error('Missing headers (need question, answer, score)');
-              const rows = [cols];
-              for (const r of response.table.rows) {
-                const vals = r.c.map(c => (c && c.v != null ? String(c.v) : ''));
-                rows.push(vals);
-              }
-              resolve(rows);
-            } catch (e) { reject(e); }
-          };
-
-          const script = document.createElement('script');
-          script.src = gvizUrl + `&tq&gid=${gid}&tqx=out:json&callback=${cbName}`;
-          script.async = true;
-          script.onerror = () => { cleanup(); reject(new Error('GViz script error')); };
-          document.head.appendChild(script);
-        } catch (e) { reject(e); }
-      });
-    }
-
-    function rowsToQA(rows) {
-      const header = rows[0].map(h => String(h || '').trim().toLowerCase());
-      const qi = header.indexOf('question');
-      const ai = header.indexOf('answer');
-      const si = header.indexOf('score');
-      const li = header.indexOf('aliases');
-      if (qi < 0 || ai < 0 || si < 0) throw new Error('Missing required headers: question, answer, score');
-      const byQ = new Map();
-      for (const row of rows.slice(1)) {
-        if (!row || !row.length) continue;
-        const q = (row[qi] || '').trim();
-        const a = (row[ai] || '').trim();
-        const sText = String(row[si] ?? '').trim();
-        const sNum = Number(sText.replace(/[^0-9.+-]/g, ''));
-        const l = li >= 0 ? (row[li] || '') : '';
-        if (!q || !a) continue;
-        if (!byQ.has(q)) byQ.set(q, []);
-        byQ.get(q).push({
-          text: a,
-          score: Number.isFinite(sNum) ? sNum : 0,
-          aliases: l.split('|').map(x => x.trim()).filter(Boolean),
-        });
-      }
-      const out = [...byQ.entries()].map(([question, answers]) => {
-        answers.sort((x, y) => y.score - x.score);
-        return { question, answers };
-      });
-      if (!out.length) throw new Error('Parsed 0 questions');
-      return out;
-    }
-
-    async function loadQuestions() {
-      // 1) Try CSV fetch
-      try {
-        const csvRows = await loadViaCSV(SHEET_PUBLISHED_URL);
-        const out = rowsToQA(csvRows);
-        console.log(`Loaded ${out.length} questions via CSV`);
-        return out;
-      } catch (csvErr) {
-        console.warn('CSV load failed, trying GViz JSONP…', csvErr);
-      }
-
-      // 2) Try GViz JSONP (no CORS)
-      try {
-        const gvizRows = await loadViaGvizJSONP(SHEET_PUBLISHED_URL);
-        const out = rowsToQA(gvizRows);
-        console.log(`Loaded ${out.length} questions via GViz JSONP`);
-        return out;
-      } catch (gvizErr) {
-        console.warn('GViz load failed, using embedded QUESTIONS', gvizErr);
-      }
-
-      // 3) Fallback to embedded QUESTIONS
-      return QUESTIONS;
-    }
-
-    // =====================
-    // 5) WIRE UP UI
-    // =====================
-    els.guessBtn.addEventListener('click', handleGuess);
-    els.input.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleGuess(); });
-    els.passBtn.addEventListener('click', nextQuestion);
-    els.nextBtn.addEventListener('click', nextQuestion);
-
-    // Init
-    (async function init(){
-      // You could shuffle questions here if desired
-      // QUESTIONS.sort(() => Math.random() - 0.5);
-      const data = await loadQuestions();
-      if (Array.isArray(data) && data.length) {
-        // Replace QUESTIONS if loaded externally
-        if (data !== QUESTIONS) {
-          while (QUESTIONS.length) QUESTIONS.pop();
-          data.forEach(q => QUESTIONS.push(q));
-        }
-      }      if (DAILY_MODE) { DAY_KEY = getDayKey(); idx = dailyIndex(QUESTIONS.length, DAY_KEY); els.passBtn.classList.add('hidden'); els.nextBtn.classList.add('hidden'); }
-      renderQuestion();
-    })();
-  </script>
+  <!-- Only one external JS include; no inline scripts -->
+  <script src="app.js?v=16"></script>
 </body>
 </html>
