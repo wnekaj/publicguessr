@@ -46,7 +46,7 @@ function renderQuestion(){
   els.nextBtn.classList.add("hidden");
   els.input.value = ""; try{ els.input.focus(); }catch(_){}
 
-  var count = Math.min(q.answers.length, 8);
+  var count = Math.min(q.answers.length, MAX_ANSWERS);
   for (var i=0;i<count;i++){
     var tile = document.createElement("div");
     tile.className = "tile";
@@ -101,6 +101,7 @@ els.nextBtn.addEventListener("click", nextQuestion);
 // ===== Daily Mode =====
 const DAILY_MODE = true;         // set false to disable daily mode
 const DAILY_TZ   = "Europe/London";
+const MAX_ANSWERS = 6;
 var DAY_KEY = null;
 
 function getDayKey(){
