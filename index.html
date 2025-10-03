@@ -37,13 +37,28 @@
     }
     input[type="text"]:focus{border-color:#fdba74;box-shadow:0 0 0 4px rgba(249,115,22,.15)}
     button{
-      border:none;border-radius:12px;padding:12px 16px;font-size:16px;font-weight:700;cursor:pointer;
-      background:linear-gradient(180deg,#fde68a,var(--accent));color:#0b0b0b;
-      transition:transform .05s ease-in-out,box-shadow .2s ease;user-select:none;box-shadow:0 4px 10px rgba(0,0,0,.08)
-    }
-    button:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(0,0,0,.12)}
-    button:active{transform:translateY(0)}
-    button.ghost{background:transparent;border:1px dashed rgba(15,23,42,.2);color:var(--text)}
+  border:2px solid var(--accent);
+  border-radius:12px;
+  padding:12px 16px;
+  font-size:16px;
+  font-weight:700;
+  cursor:pointer;
+  background:#ffffff;      /* white fill */
+  color:var(--accent);     /* orange text */
+  transition:transform .05s ease-in-out, box-shadow .2s ease, background .15s ease, border-color .15s ease;
+  box-shadow:0 2px 6px rgba(0,0,0,.05);
+}
+button:hover{
+  transform:translateY(-1px);
+  box-shadow:0 6px 14px rgba(0,0,0,.10);
+  background:#fff7ed;      /* subtle warm hover */
+  border-color:#f59e0b;    /* slightly stronger orange */
+}
+button:active{
+  transform:translateY(0);
+  box-shadow:0 2px 6px rgba(0,0,0,.06);
+}
+
 
     /* New strike bar (under input) */
 .strikebar{ display:flex; gap:16px; margin:8px 0 4px; align-items:center; justify-content:center; /* ⟵ centers the three dots */}
