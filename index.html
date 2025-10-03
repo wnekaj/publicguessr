@@ -1,1 +1,300 @@
-<!doctype html><meta charset="utf-8"><title>OK</title><h1>It works</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Family Fortunes — Poll Edition</title>
+  <style>
+    :root {
+      --bg: #0f172a;      /* slate-900 */
+      --card: #111827;    /* gray-900 */
+      --muted: #94a3b8;   /* slate-400 */
+      --text: #e5e7eb;    /* gray-200 */
+      --accent: #38bdf8;  /* sky-400 */
+      --success: #34d399; /* emerald-400 */
+      --danger: #f87171;  /* red-400 */
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 600px at 50% -10%, #1f2937, var(--bg));
+      color: var(--text);
+      display: grid; place-items: center;
+    }
+    .app { width: min(920px, 92vw); }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      backdrop-filter: blur(6px);
+    }
+    .title {
+      font-size: clamp(22px, 3.5vw, 34px);
+      margin: 6px 0 2px; font-weight: 800; letter-spacing: 0.3px;
+    }
+    .subtitle { color: var(--muted); margin: 0 0 16px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    input[type="text"] {
+      flex: 1 1 280px; font-size: 18px; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(17,24,39,0.7); color: var(--text); outline: none;
+    }
+    input[type="text"]::placeholder { color: #9ca3af; }
+    button {
+      border: none; border-radius: 12px; padding: 12px 16px; font-size: 16px; font-weight: 700; cursor: pointer;
+      background: linear-gradient(180deg, var(--accent), #0284c7); color: #06131a;
+      transition: transform 0.05s ease-in-out; user-select: none;
+    }
+    button.secondary { background: linear-gradient(180deg, #6ee7b7, #059669); color: #062016; }
+    button.ghost { background: transparent; border: 1px dashed rgba(255,255,255,0.2); color: var(--text); }
+    button:active { transform: translateY(1px); }
+
+    .board { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 18px 0; }
+    .tile {
+      background: #0b1220; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px 16px;
+      display: flex; align-items: center; justify-content: space-between; min-height: 58px; font-weight: 800;
+    }
+    .tile.revealed { background: #0e1a2c; }
+    .answer { text-transform: uppercase; letter-spacing: 0.5px; }
+    .points { color: var(--accent); font-variant-numeric: tabular-nums; }
+
+    .hud { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .score { font-weight: 800; font-size: 18px; }
+    .strikes { display: flex; gap: 6px; align-items: center; }
+    .strike {
+      width: 22px; height: 22px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15);
+      display: grid; place-items: center; font-weight: 900; color: var(--danger);
+      background: rgba(255,0,0,0.08);
+    }
+    .pill { font-size: 12px; padding: 6px 10px; border: 1px solid rgba(255,255,255,0.12); border-radius: 999px; color: var(--muted); }
+
+    details.howto { margin-top: 12px; }
+    details.howto summary { cursor: pointer; color: var(--accent); font-weight: 700; }
+    .footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 10px; }
+    .hidden { display: none !important; }
+
+    @media (max-width: 640px) {
+      .board { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="card">
+      <div class="pill">Prototype</div>
+      <h1 class="title">Family Fortunes — Poll Edition</h1>
+      <p class="subtitle" id="questionText">Loading…</p>
+
+      <div class="row" style="margin-bottom: 8px;">
+        <input id="guessInput" type="text" placeholder="Type an answer…" autocomplete="off" />
+        <button id="guessBtn">Submit</button>
+        <button id="passBtn" class="ghost" title="Skip to next question">Pass</button>
+      </div>
+
+      <div class="board" id="board"></div>
+
+      <div class="hud">
+        <div class="score">Score: <span id="score">0</span></div>
+        <div class="strikes" aria-live="polite">
+          <span>Strikes:</span>
+          <div id="strike1" class="strike">×</div>
+          <div id="strike2" class="strike">×</div>
+          <div id="strike3" class="strike">×</div>
+        </div>
+        <button id="nextBtn" class="secondary hidden">Next question</button>
+      </div>
+
+      <details class="howto"><summary>How do I add my polling data?</summary>
+        <div style="margin-top: 10px; color: var(--text);">
+          <ol>
+            <li>Replace the <code>QUESTIONS</code> array in the script with your own questions and answers (top 5–8). Use <code>score</code> as the % from your poll.</li>
+            <li>Optionally, publish a Google Sheet as CSV and fetch it (see commented code near <code>loadQuestions()</code>).</li>
+            <li>Re-deploy by uploading this single file to Netlify / Vercel / GitHub Pages.</li>
+          </ol>
+        </div>
+      </details>
+    </div>
+
+    <p class="footer">Built as a learning starter. No frameworks, no build tools — just one file.</p>
+  </div>
+
+  <script>
+    // =====================
+    // 1) SAMPLE DATA (edit me)
+    // =====================
+    // Each question has an array of answers. Include optional aliases for more forgiving matching.
+    const QUESTIONS = [
+      {
+        question: "Name a bill people most worry about going up",
+        answers: [
+          { text: "Energy", aliases: ["gas", "electric", "electricity", "power", "heating"], score: 42 },
+          { text: "Rent", aliases: ["renting"], score: 18 },
+          { text: "Mortgage", aliases: ["mortgages"], score: 14 },
+          { text: "Water", aliases: ["water rates"], score: 10 },
+          { text: "Council Tax", aliases: ["council", "local tax"], score: 9 },
+          { text: "Food", aliases: ["groceries", "supermarket"], score: 5 }
+        ]
+      },
+      {
+        question: "Name something water companies should be most accountable for",
+        answers: [
+          { text: "Sewage spills", aliases: ["sewage", "discharges", "overflows"], score: 39 },
+          { text: "Water quality", aliases: ["clean water", "drinking water"], score: 26 },
+          { text: "Leak reduction", aliases: ["leaks", "pipe leaks"], score: 16 },
+          { text: "Bill fairness", aliases: ["fair bills", "pricing"], score: 11 },
+          { text: "Investment", aliases: ["infrastructure", "capital"], score: 8 }
+        ]
+      }
+    ];
+
+    // =====================
+    // 2) STATE
+    // =====================
+    let idx = 0;
+    let score = 0;
+    let revealed = new Set();
+    let strikes = 0;
+
+    const els = {
+      questionText: document.getElementById('questionText'),
+      board: document.getElementById('board'),
+      input: document.getElementById('guessInput'),
+      guessBtn: document.getElementById('guessBtn'),
+      passBtn: document.getElementById('passBtn'),
+      nextBtn: document.getElementById('nextBtn'),
+      score: document.getElementById('score'),
+      strike1: document.getElementById('strike1'),
+      strike2: document.getElementById('strike2'),
+      strike3: document.getElementById('strike3'),
+    };
+
+    // =====================
+    // 3) HELPERS
+    // =====================
+    const norm = s => s.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim();
+
+    function renderQuestion() {
+      const q = QUESTIONS[idx];
+      els.questionText.textContent = q.question;
+      els.board.innerHTML = '';
+      revealed = new Set();
+      strikes = 0;
+      updateStrikes();
+      els.nextBtn.classList.add('hidden');
+      els.input.value = '';
+      els.input.focus();
+
+      const count = Math.min(q.answers.length, 8);
+      for (let i = 0; i < count; i++) {
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.dataset.index = i;
+        tile.innerHTML = `<span class="answer">— — —</span><span class="points">??</span>`;
+        els.board.appendChild(tile);
+      }
+    }
+
+    function reveal(i) {
+      const q = QUESTIONS[idx];
+      const ans = q.answers[i];
+      const tile = [...els.board.children][i];
+      if (!tile || !ans) return;
+      tile.classList.add('revealed');
+      tile.querySelector('.answer').textContent = ans.text;
+      tile.querySelector('.points').textContent = ans.score;
+      revealed.add(i);
+      score += ans.score;
+      els.score.textContent = score;
+
+      // If all revealed, allow next question
+      const totalToReveal = Math.min(q.answers.length, els.board.children.length);
+      if (revealed.size >= totalToReveal) {
+        els.nextBtn.classList.remove('hidden');
+      }
+    }
+
+    function updateStrikes() {
+      [els.strike1, els.strike2, els.strike3].forEach((el, i) => {
+        el.style.opacity = strikes > i ? 1 : 0.25;
+      });
+    }
+
+    function handleGuess() {
+      const guess = norm(els.input.value);
+      if (!guess) return;
+      const q = QUESTIONS[idx];
+
+      // Find matching unrevealed answer
+      let foundIndex = -1;
+      q.answers.forEach((ans, i) => {
+        if (foundIndex !== -1) return; // already found
+        if (revealed.has(i)) return;
+        const candidates = [ans.text, ...(ans.aliases || [])].map(norm);
+        if (candidates.includes(guess)) foundIndex = i;
+      });
+
+      if (foundIndex !== -1) {
+        reveal(foundIndex);
+        els.input.value = '';
+        els.input.focus();
+      } else {
+        // wrong answer => strike
+        strikes = Math.min(strikes + 1, 3);
+        updateStrikes();
+        if (strikes >= 3) {
+          // reveal the rest
+          q.answers.forEach((_, i) => { if (!revealed.has(i)) reveal(i); });
+          els.nextBtn.classList.remove('hidden');
+        }
+      }
+    }
+
+    function nextQuestion() {
+      idx = (idx + 1) % QUESTIONS.length;
+      renderQuestion();
+    }
+
+    // =====================
+    // 4) OPTIONAL: load questions from a Google Sheet (CSV)
+    // Publish your sheet (File → Share → Publish to web → CSV). Then uncomment and set SHEET_CSV_URL.
+    // const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/.../pub?output=csv";
+    async function loadQuestions() {
+      // If using a sheet, fetch & parse here and return an array like QUESTIONS.
+      // For example CSV columns: question,answer,score,aliases (aliases separated by |)
+      // const csv = await fetch(SHEET_CSV_URL).then(r => r.text());
+      // const rows = csv.split(/\r?\n/).map(r => r.split(','));
+      // // Group by question
+      // const byQ = new Map();
+      // for (const [question, answer, score, aliases] of rows.slice(1)) {
+      //   if (!byQ.has(question)) byQ.set(question, []);
+      //   byQ.get(question).push({ text: answer, score: Number(score)||0, aliases: (aliases||'').split('|').filter(Boolean) });
+      // }
+      // return [...byQ.entries()].map(([question, answers]) => ({ question, answers }));
+      return QUESTIONS; // default to embedded sample
+    }
+
+    // =====================
+    // 5) WIRE UP UI
+    // =====================
+    els.guessBtn.addEventListener('click', handleGuess);
+    els.input.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleGuess(); });
+    els.passBtn.addEventListener('click', nextQuestion);
+    els.nextBtn.addEventListener('click', nextQuestion);
+
+    // Init
+    (async function init(){
+      // You could shuffle questions here if desired
+      // QUESTIONS.sort(() => Math.random() - 0.5);
+      const data = await loadQuestions();
+      if (Array.isArray(data) && data.length) {
+        // Replace QUESTIONS if loaded externally
+        if (data !== QUESTIONS) {
+          while (QUESTIONS.length) QUESTIONS.pop();
+          data.forEach(q => QUESTIONS.push(q));
+        }
+      }
+      renderQuestion();
+    })();
+  </script>
+</body>
+</html>
