@@ -33,12 +33,24 @@ var els = {
 function norm(s){ return s.toLowerCase().replace(/[^a-z0-9\s-]/g,"").trim(); }
 
 function renderQuestion(){
-  if (!QUESTIONS || !QUESTIONS.length){
-    els.questionText.textContent = "No questions loaded. Check your Google Sheet.";
-    els.board.innerHTML = "";
-    els.nextBtn.classList.add("hidden");
-    return;
+  const q = QUESTIONS[idx];
+  els.questionText.textContent = q.question;
+  els.board.innerHTML = "";
+  revealed = new Set();
+  strikes = 0; updateStrikes();
+  els.nextBtn.classList.add("hidden");
+  els.input.value = ""; try{ els.input.focus(); }catch(_){}
+  els.score.textContent = "0%"; // reset HUD score
+
+  const count = Math.min(q.answers.length, MAX_ANSWERS);
+  for (let i=0;i<count;i++){
+    const tile = document.createElement("div");
+    tile.className = "tile";
+    tile.setAttribute("data-index", String(i));
+    tile.innerHTML = '<div class="fill"></div><div class="tile-content"><span class="answer">— — —</span><span class="points">??</span></div>';
+    els.board.appendChild(tile);
   }
+}
   var q = QUESTIONS[idx];
   els.questionText.textContent = q.question;
   els.board.innerHTML = "";
@@ -57,17 +69,39 @@ function renderQuestion(){
 }
 
 function reveal(i){
-  var q = QUESTIONS[idx], ans = q.answers[i], tile = els.board.children[i];
+  const q = QUESTIONS[idx];
+  const ans = q.answers[i];
+  const tile = els.board.children[i];
   if (!tile || !ans) return;
-  tile.classList.add("revealed");
-  tile.querySelector(".answer").textContent = ans.text;
-  tile.querySelector(".points").textContent = String(ans.score);
-  revealed.add(i);
-  score += ans.score;
-  els.score.textContent = String(score);
-  var total = Math.min(q.answers.length, els.board.children.length);
-  if (revealed.size >= total) finishRound();
+
+  const fill = tile.querySelector(".fill");
+  const answerEl = tile.querySelector(".answer");
+  const pointsEl = tile.querySelector(".points");
+
+  // When the width animation completes, reveal label and %; then update score.
+  const onDone = function(){
+    tile.classList.add("revealed");
+    answerEl.textContent = ans.text;
+    pointsEl.textContent = ans.score + "%";
+    if (!revealed.has(i)){
+      revealed.add(i);
+      score += ans.score;
+      els.score.textContent = score + "%";
+    }
+    fill.removeEventListener("transitionend", onDone);
+
+    // End-of-round check
+    const totalToReveal = Math.min(q.answers.length, els.board.children.length);
+    if (revealed.size >= totalToReveal) finishRound();
+  };
+
+  fill.addEventListener("transitionend", onDone);
+  // Kick the animation next frame
+  requestAnimationFrame(function(){
+    fill.style.width = ans.score + "%";
+  });
 }
+
 
 function updateStrikes(){ [els.strike1,els.strike2,els.strike3].forEach(function(el,i){
   el.style.opacity = (strikes > i ? 1 : 0.25);
@@ -101,7 +135,7 @@ els.nextBtn.addEventListener("click", nextQuestion);
 // ===== Daily Mode =====
 const DAILY_MODE = true;         // set false to disable daily mode
 const DAILY_TZ   = "Europe/London";
-const MAX_ANSWERS = 6;
+const MAX_ANSWERS = 5;
 var DAY_KEY = null;
 
 function getDayKey(){
