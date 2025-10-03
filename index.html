@@ -136,13 +136,13 @@
         ]
       },
       {
-        question: "Who is your favourite politician",
+        question: "Name something water companies should be most accountable for",
         answers: [
-          { text: "Thatcher", aliases: ["Maggie", "Margaret Thatcher", "Thacher"], score: 39 },
-          { text: "Obama", aliases: ["Barack Obama", "Barack", "Borack Obama"], score: 26 },
-          { text: "Johnson", aliases: ["leaks", "pipe leaks"], score: 16 },
-          { text: "Corbyn", aliases: ["Corbs", "Jezza", "Jeremy Corbyn"], score: 11 },
-          { text: "Blair", aliases: ["Tony", "Tony B"], score: 8 }
+          { text: "Sewage spills", aliases: ["sewage", "discharges", "overflows"], score: 39 },
+          { text: "Water quality", aliases: ["clean water", "drinking water"], score: 26 },
+          { text: "Leak reduction", aliases: ["leaks", "pipe leaks"], score: 16 },
+          { text: "Bill fairness", aliases: ["fair bills", "pricing"], score: 11 },
+          { text: "Investment", aliases: ["infrastructure", "capital"], score: 8 }
         ]
       }
     ];
@@ -256,35 +256,94 @@
 
     // =====================
     // 4) OPTIONAL: load questions from a Google Sheet (CSV)
-    // Publish your sheet (File → Share → Publish to web → CSV). Then uncomment and set SHEET_CSV_URL.
-    // const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6_gEjPFb7k4tHmguxmp_4qHlObR7JAY5V1UtktCGS0BbfoehJd13fYv5iI4qZ1HjlEwkUxGqM0Aod/pub?output=csv";
-    async function loadQuestions() {
-  try {
-    const csv = await fetch(https://docs.google.com/spreadsheets/d/e/2PACX-1vR6_gEjPFb7k4tHmguxmp_4qHlObR7JAY5V1UtktCGS0BbfoehJd13fYv5iI4qZ1HjlEwkUxGqM0Aod/pub?output=csv).then(r => r.text());
-    const rows = csv.split(/\r?\n/).map(r => r.split(','));
+    // Publish your sheet (File → Share → Publish to web → CSV). You can paste a pubhtml link here; the loader will convert it.
+    // =====================
+    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6_gEjPFb7k4tHmguxmp_4qHlObR7JAY5V1UtktCGS0BbfoehJd13fYv5iI4qZ1HjlEwkUxGqM0Aod/pubhtml";
 
-    // Group by question (skip header row)
-    const byQ = new Map();
-    for (const [question, answer, score, aliases] of rows.slice(1)) {
-      if (!question || !answer) continue;
-      if (!byQ.has(question)) byQ.set(question, []);
-      byQ.get(question).push({
-        text: answer,
-        score: Number(score) || 0,
-        aliases: (aliases || '').split('|').filter(Boolean)
-      });
+    // --- Robust CSV parser that handles quotes and commas ---
+    function parseCSV(text) {
+      const rows = [];
+      let row = [], field = "", inQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (inQuotes) {
+          if (c === '"') {
+            if (text[i + 1] === '"') { field += '"'; i++; } // escaped quote
+            else { inQuotes = false; }
+          } else { field += c; }
+        } else {
+          if (c === '"') inQuotes = true;
+          else if (c === ',') { row.push(field); field = ""; }
+          else if (c === '
+') { row.push(field); rows.push(row); row = []; field = ""; }
+          else if (c === '
+') { /* ignore CR */ }
+          else { field += c; }
+        }
+      }
+      if (field.length || row.length) { row.push(field); rows.push(row); }
+      return rows;
     }
 
-    // Optional: sort answers by score desc
-    for (const [q, arr] of byQ) arr.sort((a,b) => b.score - a.score);
+    // --- Load questions from Google Sheet (CSV), with fallback ---
+    async function loadQuestions() {
+      try {
+        if (!SHEET_CSV_URL) throw new Error("No CSV URL configured");
+        // Normalize 'pubhtml' links to CSV
+        let url = SHEET_CSV_URL;
+        if (/\/pubhtml(\?|$)/.test(url)) {
+          url = url.replace(/\/pubhtml(\?.*)?$/, '/pub?output=csv');
+        } else if (/\/pub(\?|$)/.test(url) && !/output=csv/.test(url)) {
+          url = url.replace(/\/pub(\?.*)?$/, '/pub?output=csv');
+        }
 
-    return [...byQ.entries()].map(([question, answers]) => ({ question, answers }));
-  } catch (e) {
-    console.warn("CSV load failed, using embedded QUESTIONS", e);
-    return QUESTIONS; // fallback
-  }
-}
+        const resp = await fetch(url, { cache: 'no-store' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const csv = await resp.text();
 
+        const rows = parseCSV(csv);
+        if (!rows.length) throw new Error('Empty CSV');
+
+        // Map headers to indices (case-insensitive)
+        const header = rows[0].map(h => String(h || '').trim().toLowerCase());
+        const qi = header.indexOf('question');
+        const ai = header.indexOf('answer');
+        const si = header.indexOf('score');
+        const li = header.indexOf('aliases');
+        if (qi < 0 || ai < 0 || si < 0) {
+          throw new Error('Missing required headers: question, answer, score');
+        }
+
+        const byQ = new Map();
+        for (const row of rows.slice(1)) {
+          if (!row || !row.length) continue;
+          const q = (row[qi] || '').trim();
+          const a = (row[ai] || '').trim();
+          const sText = String(row[si] ?? '').trim();
+          const sNum = Number(sText.replace(/[^0-9.+-]/g, ''));
+          const l = li >= 0 ? (row[li] || '') : '';
+          if (!q || !a) continue;
+          if (!byQ.has(q)) byQ.set(q, []);
+          byQ.get(q).push({
+            text: a,
+            score: Number.isFinite(sNum) ? sNum : 0,
+            aliases: l.split('|').map(x => x.trim()).filter(Boolean),
+          });
+        }
+
+        const out = [...byQ.entries()].map(([question, answers]) => {
+          answers.sort((x, y) => y.score - x.score);
+          return { question, answers };
+        });
+
+        if (!out.length) throw new Error('Parsed 0 questions');
+        console.log(`Loaded ${out.length} questions from CSV`);
+        return out;
+      } catch (err) {
+        console.warn('CSV load failed; using embedded QUESTIONS instead:', err);
+        return QUESTIONS;
+      }
+    }
 
     // =====================
     // 5) WIRE UP UI
