@@ -73,12 +73,32 @@ var fmt = new Intl.DateTimeFormat("en-GB", { timeZone: safeTZ(), year:"numeric",
   return y+"-"+m+"-"+d;
 }
 
-function setDailyDate(){
+// Live date + time ticker in Europe/London (24h, with seconds)
+var _tickerId = null;
+function startDailyTickerLondon(){
   if (!els.dailyDate) return;
-  var now = new Date();
-var fmt = new Intl.DateTimeFormat("en-GB", { timeZone: safeTZ(), day: "numeric", month: "short", year: "numeric" });
-els.dailyDate.textContent = "Daily · " + fmt.format(now) + " · Europe/London";
+  if (_tickerId) { clearInterval(_tickerId); _tickerId = null; }
+
+  // Use DAILY_TZ if valid; otherwise fall back to Europe/London
+  var tz = (typeof DAILY_TZ === "string" && DAILY_TZ) ? DAILY_TZ : "Europe/London";
+  try { new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(new Date()); }
+  catch (_) { tz = "Europe/London"; }
+
+  function render(){
+    var now = new Date();
+    var dateStr = new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz, day: "numeric", month: "short", year: "numeric"
+    }).format(now);
+    var timeStr = new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz, hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit"
+    }).format(now);
+    els.dailyDate.textContent = "Daily · " + dateStr + " · " + timeStr;
+  }
+
+  render();
+  _tickerId = setInterval(render, 1000);
 }
+
 
 // ----- No-repeat engine (auto-resets when the question set changes) -----
 function ymdFromKey(key){ var p = key.split("-"); return { y:+p[0], m:+p[1], d:+p[2] }; }
@@ -369,11 +389,11 @@ function loadQuestions(){
       var anchor = getSeasonAnchor(DAY_KEY, sig);
       idx = pickIndexNoRepeat(qMap, DAY_KEY, anchor);
     }
-    setDailyDate();
+    startDailyTickerLondon();
     renderQuestion();
   }).catch(function(err){
     console.error("Init failed", err);
-    setDailyDate();
+ startDailyTickerLondon();
     renderQuestion();
   });
 })();
