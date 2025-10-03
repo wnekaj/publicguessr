@@ -66,7 +66,6 @@ function renderQuestion(){
     tile.innerHTML = '<span class="answer">- - -</span><span class="points">??</span>';
     els.board.appendChild(tile);
   }
-}
 
 function reveal(i){
   const q = QUESTIONS[idx];
