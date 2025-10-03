@@ -168,37 +168,47 @@
       strike3: document.getElementById('strike3'),
     };
 
-    // =====================
-    // 2.5) DAILY MODE
-    // =====================
-    const DAILY_MODE = false;               // set false to go back to multi-question mode
-    const DAILY_TZ = 'Europe/London';      // your timezone
-    let DAY_KEY = null;                    // e.g. 2025-10-03
+// ===== Daily Mode (ASCII-only) =====
+const DAILY_MODE = true;          // set false to disable daily mode
+const DAILY_TZ = "Europe/London";
+var DAY_KEY = null;               // e.g. 2025-10-03
 
-    function getDayKey() {
-      const now = new Date();
-      const parts = new Intl.DateTimeFormat('en-GB', { timeZone: DAILY_TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
-      const y = parts.find(p => p.type === 'year').value;
-      const m = parts.find(p => p.type === 'month').value;
-      const d = parts.find(p => p.type === 'day').value;
-      return `${y}-${m}-${d}`;
-    }
-    function dailyIndex(total, key) {
-      let h = 0; for (let i = 0; i < key.length; i++) { h = (h * 31 + key.charCodeAt(i)) | 0; }
-      h = Math.abs(h);
-      return total ? (h % total) : 0;
-    }
-    function finishRound() {
-      if (DAILY_MODE) {
-        els.input.disabled = true; els.guessBtn.disabled = true;
-        els.passBtn.classList.add('hidden'); els.nextBtn.classList.add('hidden');
-        try { localStorage.setItem('played-' + DAY_KEY, '1'); } catch (e) {}
-        const q = QUESTIONS[idx];
-        els.questionText.textContent = q.question + ' — All answers revealed! Come back tomorrow.';
-      } else {
-        finishRound();
-      }
-    }
+function getDayKey() {
+  var now = new Date();
+  // format date in desired timezone
+  var fmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone: DAILY_TZ, year: "numeric", month: "2-digit", day: "2-digit"
+  });
+  var parts = fmt.formatToParts(now);
+  var y = "", m = "", d = "";
+  for (var i = 0; i < parts.length; i++) {
+    if (parts[i].type === "year") y = parts[i].value;
+    else if (parts[i].type === "month") m = parts[i].value;
+    else if (parts[i].type === "day") d = parts[i].value;
+  }
+  return y + "-" + m + "-" + d;
+}
+
+function dailyIndex(total, key) {
+  var h = 0;
+  for (var i = 0; i < key.length; i++) { h = (h * 31 + key.charCodeAt(i)) | 0; }
+  if (h < 0) h = -h;
+  return total ? (h % total) : 0;
+}
+
+function finishRound() {
+  if (DAILY_MODE) {
+    els.input.disabled = true; els.guessBtn.disabled = true;
+    els.passBtn.classList.add("hidden"); els.nextBtn.classList.add("hidden");
+    try { localStorage.setItem("played-" + DAY_KEY, "1"); } catch (e) {}
+    var q = QUESTIONS[idx];
+    // plain hyphen to avoid smart characters
+    els.questionText.textContent = q.question + " - All answers revealed! Come back tomorrow.";
+  } else {
+    els.nextBtn.classList.remove("hidden");
+  }
+}
+
 
     // =====================
     // 3) HELPERS
@@ -483,8 +493,8 @@
           while (QUESTIONS.length) QUESTIONS.pop();
           data.forEach(q => QUESTIONS.push(q));
         }
-      }      if (DAILY_MODE) { DAY_KEY = getDayKey(); idx = dailyIndex(QUESTIONS.length, DAY_KEY); els.passBtn.classList.add('hidden'); els.nextBtn.classList.add('hidden'); }
-      renderQuestion();
+      }      if (DAILY_MODE) { DAY_KEY = getDayKey(); idx = dailyIndex(QUESTIONS.length, DAY_KEY); els.passBtn.classList.add("hidden"); els.nextBtn.classList.add("hidden"); }
+renderQuestion();
     })();
   </script>
 </body>
