@@ -43,7 +43,7 @@ function norm(s){ return s.toLowerCase().replace(/[^a-z0-9\s-]/g,"").trim(); }
 
 // ===== Daily Mode =====
 const DAILY_MODE = true;          // set false to disable daily mode
-const DAILY_TZ   = "London";
+const DAILY_TZ   = "Europe/London";
 const MAX_ANSWERS = 5;            // 5 stacked tiles (Wordle-ish)
 var DAY_KEY = null;
 
