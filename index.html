@@ -12,6 +12,7 @@
       --text:#0b0f19;
       --accent:#fb923c;   /* lighter orange */
       --accent-600:#f59e0b;
+      --danger:#ef4444;
     }
     html,body{height:100%}
     body{
@@ -21,6 +22,7 @@
       color:var(--text);
       display:grid;place-items:start center;min-height:100vh;
     }
+    .hidden{display:none!important}
     .app{width:min(520px,92vw);margin-top:24px}
     .sitebar{height:56px;display:flex;align-items:center;justify-content:center;width:100%;margin-bottom:12px}
     .brand{font-weight:800;letter-spacing:.3px;color:var(--text)}
@@ -42,7 +44,18 @@
     button:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(0,0,0,.12)}
     button:active{transform:translateY(0)}
     button.ghost{background:transparent;border:1px dashed rgba(15,23,42,.2);color:var(--text)}
-    .board{display:grid;grid-template-columns:1fr;gap:10px;margin:16px 0}
+
+    /* New strike bar (under input) */
+    .strikebar{display:flex;gap:8px;margin:6px 0 4px;align-items:center}
+    .strike-dot{
+      width:14px;height:14px;border-radius:9999px;
+      border:1px solid rgba(239,68,68,.4);
+      background:rgba(239,68,68,.15);
+      opacity:.25; transition:opacity .2s ease, transform .12s ease;
+    }
+    .strike-dot.active{opacity:1; transform:scale(1.05);}
+
+    .board{display:grid;grid-template-columns:1fr;gap:10px;margin:12px 0 16px}
 
     /* Tiles (shorter height) */
     .tile{
@@ -64,43 +77,66 @@
     .answer{text-transform:uppercase;letter-spacing:.5px}
     .points{color:#f97316;font-variant-numeric:tabular-nums;letter-spacing:.2px;margin-left:8px}
 
-    /* HUD: keep strikes, hide score + next button */
-    .hud{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-    .hud .score{display:none}
-    #nextBtn{display:none!important}
+    /* Hide the old HUD stuff (kept for JS compatibility) */
+    .hud{display:none}
+
+    /* Modal */
+    .modal-root{position:fixed;inset:0;z-index:50}
+    .modal-root.hidden{display:none!important}
+    .modal-backdrop{position:absolute;inset:0;background:rgba(2,8,23,.5)}
+    .modal-card{
+      position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+      width:min(480px,92vw);background:#fff;border:1px solid #e5e7eb;border-radius:16px;
+      box-shadow:0 25px 60px rgba(0,0,0,.25);padding:18px 18px 14px;
+    }
+    .modal-title{font-weight:800;margin:0 0 6px}
+    .modal-body{color:#374151;margin:0 0 12px}
+    .modal-actions{display:flex;justify-content:flex-end;gap:8px}
   </style>
 </head>
 <body>
   <div class="app">
-    <header class="sitebar"><div class="brand">The daily poll guessing game</div></header>
+    <header class="sitebar"><div class="brand">Daily poll guessing game</div></header>
 
     <div class="card">
       <h1 class="title">Public Guessr</h1>
       <div class="datebar" id="dailyDate"></div>
       <p class="subtitle" id="questionText">Loading...</p>
 
-      <div class="row" style="margin-bottom:8px;">
+      <div class="row" style="margin-bottom:4px;">
         <input id="guessInput" type="text" placeholder="Type your guess..." autocomplete="off" />
         <button id="guessBtn">Submit</button>
-        <button id="passBtn" class="ghost" title="Skip">Pass</button>
+      </div>
+
+      <!-- New strike bar under input -->
+      <div class="strikebar" id="strikeBar" aria-label="strikes">
+        <span id="strike1" class="strike-dot" title="Strike 1"></span>
+        <span id="strike2" class="strike-dot" title="Strike 2"></span>
+        <span id="strike3" class="strike-dot" title="Strike 3"></span>
       </div>
 
       <div class="board" id="board"></div>
 
+      <!-- keep hidden for JS compatibility -->
       <div class="hud">
         <div class="score">Score: <span id="score">0%</span></div>
-        <div class="strikes" aria-live="polite" style="display:flex;gap:6px;align-items:center;">
-          <span>Strikes:</span>
-          <div id="strike1" class="strike">×</div>
-          <div id="strike2" class="strike">×</div>
-          <div id="strike3" class="strike">×</div>
-        </div>
         <button id="nextBtn" class="secondary hidden">Next question</button>
       </div>
     </div>
   </div>
 
-  <!-- Only one external JS include; no inline scripts -->
-  <script src="app.js"></script>
+  <!-- Modal -->
+  <div id="modal" class="modal-root hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div id="modalBackdrop" class="modal-backdrop"></div>
+    <div id="modalCard" class="modal-card">
+      <h2 id="modalTitle" class="modal-title"></h2>
+      <p id="modalBody" class="modal-body"></p>
+      <div class="modal-actions">
+        <button id="modalClose">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=17"></script>
 </body>
 </html>
