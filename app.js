@@ -170,8 +170,8 @@ function finishRound(reason){
   var q = QUESTIONS[idx];
   // set headline text
   if (reason === "failed"){
-    els.questionText.textContent = q.question + " - Out of guesses!";
-    showModal("You've run out of guesses", "Try again tomorrow.");
+    els.questionText.textContent = q.question + " - You're out of guesses!";
+    showModal("You're out of guesses!", "Try again tomorrow.");
   } else {
     els.questionText.textContent = q.question + " - All answers revealed!";
     showModal("Nice!", "You guessed every answer correctly. Come back tomorrow for a new question.");
