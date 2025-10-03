@@ -47,15 +47,24 @@
     button.ghost{background:transparent;border:1px dashed rgba(15,23,42,.2);color:var(--text)}
     .board{display:grid;grid-template-columns:1fr;gap:10px;margin:16px 0}
     .tile{
-      background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px 16px;min-height:64px;font-weight:800;
-      display:flex;align-items:center;justify-content:space-between;transition:transform .06s ease,box-shadow .2s ease,border-color .2s ease
-    }
-    .tile.revealed{background:#fff4e6;border-color:#fdba74;box-shadow:0 6px 16px rgba(249,115,22,.12)}
-    .answer{text-transform:uppercase;letter-spacing:.5px}
-    .points{color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:.2px}
-    /* Hide HUD for cleaner Wordle-like look; re-enable if you want it visible */
-    .hud{display:none}
-    .footer{color:var(--muted);font-size:12px;text-align:center;margin-top:10px}
+  position: relative; overflow: hidden;
+  background:#fff; border:1px solid #e5e7eb; border-radius:12px;
+  padding:12px 14px; min-height:48px;
+  display:flex; align-items:center; justify-content:space-between; font-weight:800;
+  transition: box-shadow .2s ease, border-color .2s ease;}
+.tile .fill{
+  position:absolute; left:0; top:0; height:100%; width:0%;
+  background: rgba(249,115,22,.18); /* light orange */
+  transition: width 850ms ease-out;
+}
+.tile .tile-content{
+  position:relative; z-index:2; width:100%;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.tile.revealed{ background:#fff4e6; border-color:#fdba74; box-shadow:0 6px 16px rgba(249,115,22,.12); }
+
+.datebar{ color:#6b7280; text-align:center; font-size:12px; margin:0 0 6px; }
+.points{ color:#f97316; font-variant-numeric: tabular-nums; letter-spacing:.2px; margin-left:8px; }
   </style>
 </head>
 <body>
@@ -64,6 +73,7 @@
 
     <div class="card">
       <h1 class="title">Public Guessr</h1>
+      <div class="datebar" id="dailyDate"></div>
       <p class="subtitle" id="questionText">Loading…</p>
 
       <div class="row" style="margin-bottom:8px;">
@@ -75,7 +85,7 @@
       <div class="board" id="board"></div>
 
       <div class="hud">
-        <div class="score">Score: <span id="score">0</span></div>
+        <div class="score">Score: <span id="score">0%</span></div>
         <div class="strikes" aria-live="polite" style="display:flex;gap:6px;align-items:center;">
           <span>Strikes:</span>
           <div id="strike1" class="strike">×</div>
