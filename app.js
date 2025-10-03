@@ -32,53 +32,117 @@ var els = {
 
 function norm(s){ return s.toLowerCase().replace(/[^a-z0-9\s-]/g,"").trim(); }
 
+// ===== Daily Mode =====
+const DAILY_MODE = true;          // set false to disable daily mode
+const DAILY_TZ   = "Europe/London";
+const MAX_ANSWERS = 5;            // 5 stacked tiles (Wordle-ish)
+var DAY_KEY = null;
+
+function getDayKey(){
+  var now = new Date();
+  var fmt = new Intl.DateTimeFormat("en-GB",{timeZone:DAILY_TZ,year:"numeric",month:"2-digit",day:"2-digit"});
+  var parts = fmt.formatToParts(now);
+  var y="",m="",d="";
+  for (var i=0;i<parts.length;i++){
+    if (parts[i].type==="year") y=parts[i].value;
+    else if (parts[i].type==="month") m=parts[i].value;
+    else if (parts[i].type==="day") d=parts[i].value;
+  }
+  return y+"-"+m+"-"+d;
+}
+
+function finishRound(){
+  if (DAILY_MODE){
+    els.input.disabled = true; els.guessBtn.disabled = true;
+    els.passBtn.classList.add("hidden"); els.nextBtn.classList.add("hidden");
+    try{ localStorage.setItem("played-"+DAY_KEY,"1"); }catch(_){}
+    var q = QUESTIONS[idx];
+    els.questionText.textContent = q.question + " - All answers revealed! Come back tomorrow.";
+  } else {
+    els.nextBtn.classList.remove("hidden");
+  }
+}
+
+// ----- No-repeat engine (auto-resets when the question set changes) -----
+function ymdFromKey(key){ var p = key.split("-"); return { y:+p[0], m:+p[1], d:+p[2] }; }
+function daysFromYMD(y,m,d){ return Math.floor(Date.UTC(y, m-1, d) / 86400000); }
+function daysSince(aKey, bKey){
+  var a = ymdFromKey(aKey), b = ymdFromKey(bKey);
+  return daysFromYMD(b.y,b.m,b.d) - daysFromYMD(a.y,a.m,a.d);
+}
+function normalizeId(s){ return String(s||"").trim().toLowerCase(); }
+
+function buildQuestionMap(){
+  var arr = [];
+  for (var i=0;i<QUESTIONS.length;i++){
+    var id = normalizeId(QUESTIONS[i].question);
+    if (!arr.some(function(x){ return x.id === id; })) arr.push({ id:id, idx:i });
+  }
+  arr.sort(function(a,b){ return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0); });
+  return arr;
+}
+function poolSignature(map){
+  var ids = map.map(function(x){ return x.id; });
+  return ids.join("|");
+}
+function getSeasonAnchor(todayKey, sig){
+  var savedSig = null, savedAnchor = null;
+  try {
+    savedSig   = localStorage.getItem("ff_pool_sig");
+    savedAnchor= localStorage.getItem("ff_anchor");
+  } catch(e){}
+  if (savedSig !== sig){
+    try { localStorage.setItem("ff_pool_sig", sig); localStorage.setItem("ff_anchor", todayKey); } catch(e){}
+    return todayKey;
+  }
+  if (!savedAnchor){
+    try { localStorage.setItem("ff_anchor", todayKey); } catch(e){}
+    return todayKey;
+  }
+  return savedAnchor;
+}
+function pickIndexNoRepeat(map, todayKey, anchorKey){
+  var total = map.length;
+  if (!total) return 0;
+  var offset = daysSince(anchorKey, todayKey);
+  var pos = ((offset % total) + total) % total;
+  return map[pos].idx;
+}
+
+// ===== UI =====
 function renderQuestion(){
-  const q = QUESTIONS[idx];
+  var q = QUESTIONS[idx];
   els.questionText.textContent = q.question;
   els.board.innerHTML = "";
   revealed = new Set();
   strikes = 0; updateStrikes();
   els.nextBtn.classList.add("hidden");
+  els.input.disabled = false; els.guessBtn.disabled = false;
   els.input.value = ""; try{ els.input.focus(); }catch(_){}
   els.score.textContent = "0%"; // reset HUD score
-
-  const count = Math.min(q.answers.length, MAX_ANSWERS);
-  for (let i=0;i<count;i++){
-    const tile = document.createElement("div");
-    tile.className = "tile";
-    tile.setAttribute("data-index", String(i));
-    tile.innerHTML = '<div class="fill"></div><div class="tile-content"><span class="answer">— — —</span><span class="points">??</span></div>';
-    els.board.appendChild(tile);
-  }
-}
-  var q = QUESTIONS[idx];
-  els.questionText.textContent = q.question;
-  els.board.innerHTML = "";
-  revealed = new Set(); strikes = 0; updateStrikes();
-  els.nextBtn.classList.add("hidden");
-  els.input.value = ""; try{ els.input.focus(); }catch(_){}
 
   var count = Math.min(q.answers.length, MAX_ANSWERS);
   for (var i=0;i<count;i++){
     var tile = document.createElement("div");
     tile.className = "tile";
     tile.setAttribute("data-index", String(i));
-    tile.innerHTML = '<span class="answer">- - -</span><span class="points">??</span>';
+    // include .fill layer for the left->right reveal
+    tile.innerHTML = '<div class="fill"></div><div class="tile-content"><span class="answer">— — —</span><span class="points">??</span></div>';
     els.board.appendChild(tile);
   }
- }
+}
+
 function reveal(i){
-  const q = QUESTIONS[idx];
-  const ans = q.answers[i];
-  const tile = els.board.children[i];
+  var q = QUESTIONS[idx];
+  var ans = q.answers[i];
+  var tile = els.board.children[i];
   if (!tile || !ans) return;
 
-  const fill = tile.querySelector(".fill");
-  const answerEl = tile.querySelector(".answer");
-  const pointsEl = tile.querySelector(".points");
+  var fill = tile.querySelector(".fill");
+  var answerEl = tile.querySelector(".answer");
+  var pointsEl = tile.querySelector(".points");
 
-  // When the width animation completes, reveal label and %; then update score.
-  const onDone = function(){
+  var onDone = function(){
     tile.classList.add("revealed");
     answerEl.textContent = ans.text;
     pointsEl.textContent = ans.score + "%";
@@ -90,21 +154,20 @@ function reveal(i){
     fill.removeEventListener("transitionend", onDone);
 
     // End-of-round check
-    const totalToReveal = Math.min(q.answers.length, els.board.children.length);
+    var totalToReveal = Math.min(q.answers.length, els.board.children.length);
     if (revealed.size >= totalToReveal) finishRound();
   };
 
   fill.addEventListener("transitionend", onDone);
   // Kick the animation next frame
-  requestAnimationFrame(function(){
-    fill.style.width = ans.score + "%";
-  });
+  requestAnimationFrame(function(){ fill.style.width = ans.score + "%"; });
 }
 
-
-function updateStrikes(){ [els.strike1,els.strike2,els.strike3].forEach(function(el,i){
-  el.style.opacity = (strikes > i ? 1 : 0.25);
-});}
+function updateStrikes(){
+  [els.strike1,els.strike2,els.strike3].forEach(function(el,i){
+    el.style.opacity = (strikes > i ? 1 : 0.25);
+  });
+}
 
 function handleGuess(){
   var guess = norm(els.input.value); if (!guess) return;
@@ -125,102 +188,12 @@ function handleGuess(){
     }
   }
 }
+
 function nextQuestion(){ idx = (idx+1) % QUESTIONS.length; renderQuestion(); }
 els.guessBtn.addEventListener("click", handleGuess);
 els.input.addEventListener("keydown", function(e){ if (e.key === "Enter") handleGuess(); });
 els.passBtn.addEventListener("click", nextQuestion);
 els.nextBtn.addEventListener("click", nextQuestion);
-
-// ===== Daily Mode =====
-const DAILY_MODE = true;         // set false to disable daily mode
-const DAILY_TZ   = "Europe/London";
-const MAX_ANSWERS = 5;
-var DAY_KEY = null;
-
-function getDayKey(){
-  var now = new Date();
-  var fmt = new Intl.DateTimeFormat("en-GB",{timeZone:DAILY_TZ,year:"numeric",month:"2-digit",day:"2-digit"});
-  var parts = fmt.formatToParts(now);
-  var y="",m="",d="";
-  for (var i=0;i<parts.length;i++){
-    if (parts[i].type==="year") y=parts[i].value;
-    else if (parts[i].type==="month") m=parts[i].value;
-    else if (parts[i].type==="day") d=parts[i].value;
-  }
-  return y+"-"+m+"-"+d;
-}
-function dailyIndex(total,key){
-  var h=0; for (var i=0;i<key.length;i++){ h=(h*31+key.charCodeAt(i))|0; } if (h<0) h=-h;
-  return total ? (h % total) : 0;
-}
-function finishRound(){
-  if (DAILY_MODE){
-    els.input.disabled = true; els.guessBtn.disabled = true;
-    els.passBtn.classList.add("hidden"); els.nextBtn.classList.add("hidden");
-    try{ localStorage.setItem("played-"+DAY_KEY,"1"); }catch(_){}
-    var q = QUESTIONS[idx];
-    els.questionText.textContent = q.question + " - All answers revealed! Come back tomorrow.";
-  } else {
-    els.nextBtn.classList.remove("hidden");
-  }
-}
-// ----- No-repeat engine (auto-resets when the question set changes) -----
-function ymdFromKey(key){ var p = key.split("-"); return { y:+p[0], m:+p[1], d:+p[2] }; }
-function daysFromYMD(y,m,d){ return Math.floor(Date.UTC(y, m-1, d) / 86400000); }
-function daysSince(aKey, bKey){
-  var a = ymdFromKey(aKey), b = ymdFromKey(bKey);
-  return daysFromYMD(b.y,b.m,b.d) - daysFromYMD(a.y,a.m,a.d);
-}
-function normalizeId(s){ return String(s||"").trim().toLowerCase(); }
-
-// Build a stable map [{ id, idx }] sorted by id, so order doesn't depend on CSV order
-function buildQuestionMap(){
-  var arr = [];
-  for (var i=0;i<QUESTIONS.length;i++){
-    var id = normalizeId(QUESTIONS[i].question);
-    // prevent duplicates if the same question text appears twice
-    if (!arr.some(function(x){ return x.id === id; })) arr.push({ id:id, idx:i });
-  }
-  arr.sort(function(a,b){ return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0); });
-  return arr;
-}
-
-// Signature of the pool to detect when the set changed (e.g., you replaced all questions)
-function poolSignature(map){
-  var ids = map.map(function(x){ return x.id; });
-  return ids.join("|"); // simple, readable signature
-}
-
-// Get or set the "season anchor" date in localStorage tied to this pool signature
-function getSeasonAnchor(todayKey, sig){
-  var savedSig = null, savedAnchor = null;
-  try {
-    savedSig   = localStorage.getItem("ff_pool_sig");
-    savedAnchor= localStorage.getItem("ff_anchor");
-  } catch(e){}
-  if (savedSig !== sig){
-    // New pool -> reset season to today and store new signature
-    try {
-      localStorage.setItem("ff_pool_sig", sig);
-      localStorage.setItem("ff_anchor", todayKey);
-    } catch(e){}
-    return todayKey;
-  }
-  if (!savedAnchor){
-    try { localStorage.setItem("ff_anchor", todayKey); } catch(e){}
-    return todayKey;
-  }
-  return savedAnchor;
-}
-
-// Pick today's question index with no repeats until the whole pool is used
-function pickIndexNoRepeat(map, todayKey, anchorKey){
-  var total = map.length;
-  if (!total) return 0;
-  var offset = daysSince(anchorKey, todayKey);
-  var pos = ((offset % total) + total) % total; // safe modulo
-  return map[pos].idx; // map back to QUESTIONS index
-}
 
 // ===== Google Sheets loader (CSV first, GViz JSONP fallback) =====
 var SHEET_PUBLISHED_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6_gEjPFb7k4tHmguxmp_4qHlObR7JAY5V1UtktCGS0BbfoehJd13fYv5iI4qZ1HjlEwkUxGqM0Aod/pubhtml";
@@ -336,20 +309,15 @@ function loadQuestions(){
     if (data && data.length){
       if (data !== QUESTIONS){ while (QUESTIONS.length) QUESTIONS.pop(); data.forEach(function(q){ QUESTIONS.push(q); }); }
     }
-if (DAILY_MODE){
-  DAY_KEY = getDayKey();
-
-  // Build stable pool, detect changes, and pick today's index without repeats
-  var qMap = buildQuestionMap();
-  var sig  = poolSignature(qMap);
-  var anchor = getSeasonAnchor(DAY_KEY, sig);
-  idx = pickIndexNoRepeat(qMap, DAY_KEY, anchor);
-
-  // Daily UX
-  els.passBtn.classList.add("hidden");
-  els.nextBtn.classList.add("hidden");
-}
-
+    if (DAILY_MODE){
+      DAY_KEY = getDayKey();
+      var qMap = buildQuestionMap();
+      var sig  = poolSignature(qMap);
+      var anchor = getSeasonAnchor(DAY_KEY, sig);
+      idx = pickIndexNoRepeat(qMap, DAY_KEY, anchor);
+      els.passBtn.classList.add("hidden");
+      els.nextBtn.classList.add("hidden");
+    }
     renderQuestion();
   }).catch(function(err){
     console.error("Init failed", err);
