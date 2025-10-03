@@ -77,7 +77,7 @@ function setDailyDate(){
   if (!els.dailyDate) return;
   var now = new Date();
 var fmt = new Intl.DateTimeFormat("en-GB", { timeZone: safeTZ(), day: "numeric", month: "short", year: "numeric" });
-  els.dailyDate.textContent = "Daily · " + fmt.format(now) + "Europe/London";
+els.dailyDate.textContent = "Daily · " + fmt.format(now) + " · Europe/London";
 }
 
 // ----- No-repeat engine (auto-resets when the question set changes) -----
