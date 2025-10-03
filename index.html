@@ -257,21 +257,34 @@
     // =====================
     // 4) OPTIONAL: load questions from a Google Sheet (CSV)
     // Publish your sheet (File → Share → Publish to web → CSV). Then uncomment and set SHEET_CSV_URL.
-    // const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/.../pub?output=csv";
+    // const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6_gEjPFb7k4tHmguxmp_4qHlObR7JAY5V1UtktCGS0BbfoehJd13fYv5iI4qZ1HjlEwkUxGqM0Aod/pub?output=csv";
     async function loadQuestions() {
-      // If using a sheet, fetch & parse here and return an array like QUESTIONS.
-      // For example CSV columns: question,answer,score,aliases (aliases separated by |)
-      // const csv = await fetch(SHEET_CSV_URL).then(r => r.text());
-      // const rows = csv.split(/\r?\n/).map(r => r.split(','));
-      // // Group by question
-      // const byQ = new Map();
-      // for (const [question, answer, score, aliases] of rows.slice(1)) {
-      //   if (!byQ.has(question)) byQ.set(question, []);
-      //   byQ.get(question).push({ text: answer, score: Number(score)||0, aliases: (aliases||'').split('|').filter(Boolean) });
-      // }
-      // return [...byQ.entries()].map(([question, answers]) => ({ question, answers }));
-      return QUESTIONS; // default to embedded sample
+  try {
+    const csv = await fetch(https://docs.google.com/spreadsheets/d/e/2PACX-1vR6_gEjPFb7k4tHmguxmp_4qHlObR7JAY5V1UtktCGS0BbfoehJd13fYv5iI4qZ1HjlEwkUxGqM0Aod/pub?output=csv).then(r => r.text());
+    const rows = csv.split(/\r?\n/).map(r => r.split(','));
+
+    // Group by question (skip header row)
+    const byQ = new Map();
+    for (const [question, answer, score, aliases] of rows.slice(1)) {
+      if (!question || !answer) continue;
+      if (!byQ.has(question)) byQ.set(question, []);
+      byQ.get(question).push({
+        text: answer,
+        score: Number(score) || 0,
+        aliases: (aliases || '').split('|').filter(Boolean)
+      });
     }
+
+    // Optional: sort answers by score desc
+    for (const [q, arr] of byQ) arr.sort((a,b) => b.score - a.score);
+
+    return [...byQ.entries()].map(([question, answers]) => ({ question, answers }));
+  } catch (e) {
+    console.warn("CSV load failed, using embedded QUESTIONS", e);
+    return QUESTIONS; // fallback
+  }
+}
+
 
     // =====================
     // 5) WIRE UP UI
