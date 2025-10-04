@@ -25,7 +25,7 @@ var els = {
   // legacy (kept for compatibility even if hidden)
   nextBtn: document.getElementById("nextBtn"),
   score: document.getElementById("score"),
-  // strike dots (now under input)
+  // strike dots
   strike1: document.getElementById("strike1"),
   strike2: document.getElementById("strike2"),
   strike3: document.getElementById("strike3"),
@@ -36,7 +36,13 @@ var els = {
   modalClose: document.getElementById("modalClose"),
   modalBackdrop: document.getElementById("modalBackdrop"),
   // date
-  dailyDate: document.getElementById("dailyDate")
+  dailyDate: document.getElementById("dailyDate"),
+  // share + email + source
+  shareBtn: document.getElementById("shareBtn"),
+  emailForm: document.getElementById("emailForm"),
+  emailInput: document.getElementById("emailInput"),
+  emailMsg: document.getElementById("emailMsg"),
+  sourceNote: document.getElementById("sourceNote")
 };
 
 function norm(s){ return s.toLowerCase().replace(/[^a-z0-9\s-]/g,"").trim(); }
@@ -49,20 +55,15 @@ const MAX_ANSWERS = 5;
 // Fallback if DAILY_TZ ever gets set to something invalid
 function safeTZ(){
   var tz = DAILY_TZ || "Europe/London";
-  try {
-    // Will throw if tz is invalid
-    new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(new Date());
-    return tz;
-  } catch (e) {
-    return "Europe/London";
-  }
+  try { new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(new Date()); return tz; }
+  catch (e) { return "Europe/London"; }
 }
 
 var DAY_KEY = null;
 
 function getDayKey(){
   var now = new Date();
-var fmt = new Intl.DateTimeFormat("en-GB", { timeZone: safeTZ(), year:"numeric", month:"2-digit", day:"2-digit" });
+  var fmt = new Intl.DateTimeFormat("en-GB", { timeZone: safeTZ(), year:"numeric", month:"2-digit", day:"2-digit" });
   var parts = fmt.formatToParts(now);
   var y="",m="",d="";
   for (var i=0;i<parts.length;i++){
@@ -79,10 +80,7 @@ function startDailyTickerLondon(){
   if (!els.dailyDate) return;
   if (_tickerId) { clearInterval(_tickerId); _tickerId = null; }
 
-  // Use DAILY_TZ if valid; otherwise fall back to Europe/London
-  var tz = (typeof DAILY_TZ === "string" && DAILY_TZ) ? DAILY_TZ : "Europe/London";
-  try { new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(new Date()); }
-  catch (_) { tz = "Europe/London"; }
+  var tz = safeTZ();
 
   function render(){
     var now = new Date();
@@ -98,7 +96,6 @@ function startDailyTickerLondon(){
   render();
   _tickerId = setInterval(render, 1000);
 }
-
 
 // ----- No-repeat engine (auto-resets when the question set changes) -----
 function ymdFromKey(key){ var p = key.split("-"); return { y:+p[0], m:+p[1], d:+p[2] }; }
@@ -159,9 +156,138 @@ function hideModal(){
 }
 if (els.modalClose) els.modalClose.addEventListener("click", hideModal);
 if (els.modalBackdrop) els.modalBackdrop.addEventListener("click", hideModal);
-document.addEventListener("keydown", function(e){
-  if (e.key === "Escape") hideModal();
-});
+document.addEventListener("keydown", function(e){ if (e.key === "Escape") hideModal(); });
+
+// ===== Share image helpers =====
+function wrapText(ctx, text, x, y, maxWidth, lineHeight){
+  var words = String(text||"").split(/\s+/), line = "", lines = [];
+  for (var n=0; n<words.length; n++){
+    var test = line ? line + " " + words[n] : words[n];
+    if (ctx.measureText(test).width > maxWidth){
+      if (line) { lines.push(line); line = words[n]; }
+      else { lines.push(test); line = ""; }
+    } else { line = test; }
+  }
+  if (line) lines.push(line);
+  for (var i=0;i<lines.length;i++){
+    ctx.fillText(lines[i], x, y + i*lineHeight);
+  }
+  return y + lines.length*lineHeight;
+}
+
+function makeShareCanvas(){
+  var q = QUESTIONS[idx];
+  var w = 1080, h = 1080, pad = 56;
+  var c = document.createElement("canvas"); c.width = w; c.height = h;
+  var ctx = c.getContext("2d");
+
+  // bg
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(0,0,w,h);
+
+  // header
+  ctx.fillStyle = "#0b0f19";
+  ctx.font = "800 44px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
+  ctx.fillText("Crowdsense", pad, pad+10);
+
+  // date (London)
+  var now = new Date();
+  var tz = safeTZ();
+  var dateStr = new Intl.DateTimeFormat("en-GB",{ timeZone: tz, day:"numeric", month:"short", year:"numeric" }).format(now);
+  var timeStr = new Intl.DateTimeFormat("en-GB",{ timeZone: tz, hour12:false, hour:"2-digit", minute:"2-digit", second:"2-digit" }).format(now);
+  ctx.font = "600 28px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
+  ctx.fillStyle = "#6b7280";
+  ctx.fillText("Daily · " + dateStr + " · " + timeStr, pad, pad+48);
+
+  // question
+  ctx.fillStyle = "#0b0f19";
+  ctx.font = "800 36px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
+  var y = pad + 110;
+  y = wrapText(ctx, q.question, pad, y, w - pad*2, 44);
+  y += 12;
+
+  // bars
+  var count = Math.min(q.answers.length, 5);
+  var barGap = 18, barH = 56;
+  var barW = w - pad*2;
+  for (var i=0; i<count; i++){
+    var ans = q.answers[i];
+    var pct = Math.max(0, Math.min(100, Number(ans.score||0)));
+    var yTop = y + i*(barH + barGap);
+
+    // track (light)
+    ctx.fillStyle = "#f3f4f6"; ctx.fillRect(pad, yTop, barW, barH);
+    // fill (orange)
+    ctx.fillStyle = "#fde68a"; ctx.fillRect(pad, yTop, Math.round(barW * (pct/100)), barH);
+    ctx.fillStyle = "#fb923c"; ctx.fillRect(pad, yTop, Math.max(0, Math.round(barW * (pct/100))-2), barH);
+
+    // text
+    ctx.fillStyle = "#0b0f19";
+    ctx.font = "800 28px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
+    ctx.fillText(String(ans.text||"").toUpperCase(), pad+14, yTop + barH/2 + 10);
+    ctx.fillStyle = "#f97316";
+    ctx.textAlign = "right";
+    ctx.fillText(pct + "%", pad + barW - 12, yTop + barH/2 + 10);
+    ctx.textAlign = "start";
+  }
+
+  // footer meta
+  var footY = y + count*(barH + barGap) + 26;
+  ctx.fillStyle = "#6b7280";
+  ctx.font = "600 24px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
+  ctx.fillText("Strikes: " + Math.min(3, strikes) + " / 3", pad, footY);
+  ctx.textAlign = "right";
+  ctx.fillText("Source: Public First Poll", w - pad, footY);
+  ctx.textAlign = "start";
+
+  return c;
+}
+
+function shareResult(){
+  try{
+    var c = makeShareCanvas();
+    c.toBlob(function(blob){
+      if (!blob) return;
+      var file = new File([blob], "crowdsense.png", { type:"image/png" });
+
+      // Attempt native share (mobile)
+      if (navigator.canShare && navigator.canShare({ files: [file] })){
+        navigator.share({ files: [file], title: "Crowdsense", text: QUESTIONS[idx].question })
+          .catch(function(){ /* user canceled; ignore */ });
+        return;
+      }
+      // Fallback: download
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = "crowdsense.png";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    }, "image/png");
+  }catch(e){
+    console.error("Share failed", e);
+  }
+}
+
+// ===== Email capture =====
+function handleEmailSubmit(e){
+  if (!els.emailForm) return;
+  e.preventDefault();
+  var email = (els.emailInput && els.emailInput.value || "").trim();
+  if (!email) return;
+  els.emailMsg.textContent = "Submitting…";
+  var fd = new FormData(els.emailForm);
+  fetch(els.emailForm.action, { method:"POST", headers:{ "Accept":"application/json" }, body: fd })
+    .then(function(res){
+      if (res.ok) return res.json();
+      throw new Error("Subscribe failed");
+    })
+    .then(function(){
+      els.emailMsg.textContent = "Thanks! Check your inbox to confirm.";
+      try{ els.emailForm.reset(); }catch(_){}
+    })
+    .catch(function(){
+      els.emailMsg.textContent = "Sorry—there was a problem. Please try again.";
+    });
+}
 
 // ===== UI =====
 function updateStrikes(){
@@ -171,6 +297,18 @@ function updateStrikes(){
     dots[i].classList.toggle("active", strikes > i);
     dots[i].style.opacity = (strikes > i ? 1 : 0.25);
   }
+}
+
+function ensureSourceNote(){
+  var note = document.getElementById("sourceNote");
+  if (!note) {
+    note = document.createElement("p");
+    note.id = "sourceNote";
+    note.className = "source-note";
+    note.textContent = "Source: Public First Poll of 2,106 UK Adults from 9th Jul – 14th July 2025";
+  }
+  els.board.insertAdjacentElement("afterend", note);
+  els.sourceNote = note;
 }
 
 function renderQuestion(){
@@ -193,6 +331,8 @@ function renderQuestion(){
     tile.innerHTML = '<div class="fill"></div><div class="tile-content"><span class="answer">— — —</span><span class="points">??</span></div>';
     els.board.appendChild(tile);
   }
+
+  ensureSourceNote();
 }
 
 function finishRound(reason){
@@ -201,13 +341,13 @@ function finishRound(reason){
   if (els.nextBtn) els.nextBtn.classList.add("hidden");
 
   var q = QUESTIONS[idx];
-  // set headline text
+  // set headline text + modal
   if (reason === "failed"){
     els.questionText.textContent = q.question + " - You're out of guesses!";
-    showModal("You're out of guesses!", "Try again tomorrow.");
+    showModal("You're out of guesses!", "All answers have been revealed. Try again tomorrow.");
   } else {
     els.questionText.textContent = q.question + " - All answers revealed!";
-    showModal("Nice!", "You guessed every answer correctly. Come back tomorrow for a new question.");
+    showModal("Nice!", "You revealed every answer. Come back tomorrow for a new question!");
   }
 
   if (DAILY_MODE){
@@ -393,7 +533,7 @@ function loadQuestions(){
     renderQuestion();
   }).catch(function(err){
     console.error("Init failed", err);
- startDailyTickerLondon();
+    startDailyTickerLondon();
     renderQuestion();
   });
 })();
@@ -401,3 +541,5 @@ function loadQuestions(){
 // ===== events =====
 els.guessBtn.addEventListener("click", handleGuess);
 els.input.addEventListener("keydown", function(e){ if (e.key === "Enter") handleGuess(); });
+if (els.shareBtn) els.shareBtn.addEventListener("click", shareResult);
+if (els.emailForm) els.emailForm.addEventListener("submit", handleEmailSubmit);
