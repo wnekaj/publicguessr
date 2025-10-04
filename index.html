@@ -37,31 +37,30 @@
     }
     input[type="text"]:focus{border-color:#fdba74;box-shadow:0 0 0 4px rgba(249,115,22,.15)}
     button{
-  border:2px solid var(--accent);
-  border-radius:12px;
-  padding:12px 16px;
-  font-size:16px;
-  font-weight:700;
-  cursor:pointer;
-  background:#ffffff;      /* white fill */
-  color:var(--accent);     /* orange text */
-  transition:transform .05s ease-in-out, box-shadow .2s ease, background .15s ease, border-color .15s ease;
-  box-shadow:0 2px 6px rgba(0,0,0,.05);
-}
-button:hover{
-  transform:translateY(-1px);
-  box-shadow:0 6px 14px rgba(0,0,0,.10);
-  background:#fff7ed;      /* subtle warm hover */
-  border-color:#f59e0b;    /* slightly stronger orange */
-}
-button:active{
-  transform:translateY(0);
-  box-shadow:0 2px 6px rgba(0,0,0,.06);
-}
+      border:2px solid var(--accent);
+      border-radius:12px;
+      padding:12px 16px;
+      font-size:16px;
+      font-weight:700;
+      cursor:pointer;
+      background:#ffffff;      /* white fill */
+      color:var(--accent);     /* orange text */
+      transition:transform .05s ease-in-out, box-shadow .2s ease, background .15s ease, border-color .15s ease;
+      box-shadow:0 2px 6px rgba(0,0,0,.05);
+    }
+    button:hover{
+      transform:translateY(-1px);
+      box-shadow:0 6px 14px rgba(0,0,0,.10);
+      background:#fff7ed;      /* subtle warm hover */
+      border-color:#f59e0b;    /* slightly stronger orange */
+    }
+    button:active{
+      transform:translateY(0);
+      box-shadow:0 2px 6px rgba(0,0,0,.06);
+    }
 
-
-    /* New strike bar (under input) */
-.strikebar{ display:flex; gap:16px; margin:8px 0 4px; align-items:center; justify-content:center; /* ⟵ centers the three dots */}
+    /* Strike bar (centered under input) */
+    .strikebar{ display:flex; gap:16px; margin:8px 0 4px; align-items:center; justify-content:center; }
     .strike-dot{
       width:14px;height:14px;border-radius:9999px;
       border:1px solid rgba(239,68,68,.4);
@@ -92,7 +91,7 @@ button:active{
     .answer{text-transform:uppercase;letter-spacing:.5px}
     .points{color:#f97316;font-variant-numeric:tabular-nums;letter-spacing:.2px;margin-left:8px}
 
-    /* Hide the old HUD stuff (kept for JS compatibility) */
+    /* Old HUD hidden (kept for JS compatibility) */
     .hud{display:none}
 
     /* Modal */
@@ -107,13 +106,33 @@ button:active{
     .modal-title{font-weight:800;margin:0 0 6px}
     .modal-body{color:#374151;margin:0 0 12px}
     .modal-actions{display:flex;justify-content:flex-end;gap:8px}
-    .source-note{
-  color:#6b7280;           /* muted */
-  font-size:12px;
-  text-align:center;
-  margin:6px 0 0;
-}
 
+    /* Share + email */
+    .actions-row{ display:flex; justify-content:center; margin:6px 0 8px; }
+    .share-btn{
+      border:2px solid var(--accent);
+      border-radius:12px; padding:10px 14px; font-weight:800;
+      background:#fff; color:var(--accent); cursor:pointer;
+      transition:transform .05s ease-in-out, box-shadow .2s ease, background .15s ease, border-color .15s ease;
+      box-shadow:0 2px 6px rgba(0,0,0,.05);
+    }
+    .share-btn:hover{ transform:translateY(-1px); box-shadow:0 6px 14px rgba(0,0,0,.10); background:#fff7ed; border-color:#f59e0b; }
+
+    .source-note{ color:#6b7280; font-size:12px; text-align:center; margin:6px 0 0; }
+
+    .email-form{ display:flex; gap:8px; justify-content:center; margin:8px 0 0; flex-wrap:wrap; }
+    .email-form input[type="email"]{
+      min-width:220px; border:1px solid #e5e7eb; border-radius:12px; padding:10px 12px; font-size:14px;
+      outline:none; background:#fff; color:var(--text);
+      transition:box-shadow .2s ease, border-color .2s ease;
+    }
+    .email-form input[type="email"]:focus{ border-color:#fdba74; box-shadow:0 0 0 4px rgba(249,115,22,.15); }
+    .email-btn{
+      border:2px solid var(--accent); border-radius:12px; padding:10px 14px; font-weight:800;
+      background:#fff; color:var(--accent); cursor:pointer;
+    }
+    .email-btn:hover{ background:#fff7ed; border-color:#f59e0b; }
+    .email-msg{ font-size:12px; color:#6b7280; align-self:center; }
   </style>
 </head>
 <body>
@@ -130,15 +149,36 @@ button:active{
         <button id="guessBtn">Submit</button>
       </div>
 
-      <!-- New strike bar under input -->
+      <!-- Strike bar under input -->
       <div class="strikebar" id="strikeBar" aria-label="strikes">
         <span id="strike1" class="strike-dot" title="Strike 1"></span>
         <span id="strike2" class="strike-dot" title="Strike 2"></span>
         <span id="strike3" class="strike-dot" title="Strike 3"></span>
       </div>
 
-      <div class="board" id="board"> <p class="source-note">Source: Public First Poll of 2,106 UK Adults from 9th Jul - 14th July 2025</p>
-</div>
+      <div class="board" id="board"></div>
+
+      <!-- Share + source + email -->
+      <div class="actions-row">
+        <button id="shareBtn" class="share-btn">Share result</button>
+      </div>
+
+      <p id="sourceNote" class="source-note">
+        Source: Public First Poll of 2,106 UK Adults from 9th Jul – 14th July 2025
+      </p>
+
+      <form id="emailForm" class="email-form" action="https://formspree.io/f/XXXXXXXX" method="POST">
+        <input
+          id="emailInput"
+          name="email"
+          type="email"
+          placeholder="Get tomorrow’s question by email"
+          required
+          autocomplete="email"
+        />
+        <button type="submit" class="email-btn">Subscribe</button>
+        <span id="emailMsg" class="email-msg" role="status" aria-live="polite"></span>
+      </form>
 
       <!-- keep hidden for JS compatibility -->
       <div class="hud">
@@ -160,6 +200,7 @@ button:active{
     </div>
   </div>
 
-  <script src="app.js?v=17"></script>
+  <!-- Only one external JS include -->
+  <script src="app.js?v=23"></script>
 </body>
 </html>
