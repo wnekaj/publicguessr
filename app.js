@@ -50,6 +50,19 @@ function norm(s){ return s.toLowerCase().replace(/[^a-z0-9\s-]/g,"").trim(); }
 const DAILY_MODE = true;
 const DAILY_TZ   = "Europe/London"; // valid IANA tz
 const MAX_ANSWERS = 5;
+// Use a fixed season anchor so everyone computes the same offset.
+// Pick any recent date; changing it starts a new rotation season.
+const GLOBAL_ANCHOR = "2025-07-09"; // YYYY-MM-DD in Europe/London terms
+
+function pickIndexGlobal(qMap, todayKey){
+  var total = qMap.length;
+  if (!total) return 0;
+  var offset = daysSince(GLOBAL_ANCHOR, todayKey);
+  if (offset < 0) offset = -offset;             // safety if clocks differ
+  var pos = offset % total;                     // rotates through all questions
+  return qMap[pos].idx;                         // map back to QUESTIONS index
+}
+
 
 // Fallback if DAILY_TZ ever gets set to something invalid
 function safeTZ(){
@@ -413,12 +426,12 @@ function loadQuestions(){
       if (data !== QUESTIONS){ while (QUESTIONS.length) QUESTIONS.pop(); data.forEach(function(q){ QUESTIONS.push(q); }); }
     }
     if (DAILY_MODE){
-      DAY_KEY = getDayKey();
-      var qMap = buildQuestionMap();
-      var sig  = poolSignature(qMap);
-      var anchor = getSeasonAnchor(DAY_KEY, sig);
-      idx = pickIndexNoRepeat(qMap, DAY_KEY, anchor);
-    }
+  DAY_KEY = getDayKey();
+  var qMap = buildQuestionMap();     // stable, sorted by normalized question text
+  var sig  = poolSignature(qMap);    // kept for optional pinning use below
+  idx = pickIndexGlobal(qMap, DAY_KEY);
+}
+
     startDailyTickerLondon();
     renderQuestion();
   }).catch(function(err){
