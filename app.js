@@ -234,7 +234,7 @@ function finishRound(reason){
   // set headline text + modal
   if (reason === "failed"){
     els.questionText.textContent = q.question + " - You're out of guesses!";
-    showModal("You're out of guesses!", "All answers have been revealed. Try again tomorrow.");
+    showModal("You're out of guesses!", "You have run out of guesses and been defeated by the public. Try again tomorrow.");
   } else {
     els.questionText.textContent = q.question + " - All answers revealed!";
     showModal("Nice!", "You revealed every answer. Come back tomorrow for a new question!");
