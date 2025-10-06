@@ -48,6 +48,14 @@
       transition:transform .05s ease-in-out, box-shadow .2s ease, background .15s ease, border-color .15s ease;
       box-shadow:0 2px 6px rgba(0,0,0,.05);
     }
+
+    /* smaller placeholder for "Type your guess..." */
+input[type="text"]::placeholder{
+  font-size:14px;   /* was inheriting 18px */
+  color:#9ca3af;    /* optional: slightly softer */
+}
+
+    
     button:hover{
       transform:translateY(-1px);
       box-shadow:0 6px 14px rgba(0,0,0,.10);
