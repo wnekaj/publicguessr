@@ -42,6 +42,8 @@ var els = {
   emailInput: document.getElementById("emailInput"),
   emailMsg: document.getElementById("emailMsg"),
   sourceNote: document.getElementById("sourceNote")
+  strikeToast: document.getElementById("strikeToast"),
+
 };
 
 function norm(s){ return s.toLowerCase().replace(/[^a-z0-9\s-]/g,"").trim(); }
@@ -214,6 +216,39 @@ function ensureSourceNote(){
   els.sourceNote = note;
 }
 
+function strikeFeedback(n){
+  // n = current strike count (1..3)
+  var dots = [els.strike1, els.strike2, els.strike3];
+  var target = dots[n-1];
+
+  // Pop the dot that was just earned
+  if (target){
+    target.classList.add("boom");
+    setTimeout(function(){ target.classList.remove("boom"); }, 600);
+  }
+
+  // Shake the input
+  if (els.input){
+    els.input.classList.add("shake");
+    setTimeout(function(){ els.input.classList.remove("shake"); }, 450);
+  }
+
+  // Brief red flash on the card
+  var card = document.getElementById("card");
+  if (card){
+    card.classList.add("card-flash");
+    setTimeout(function(){ card.classList.remove("card-flash"); }, 300);
+  }
+
+  // Small toast "Strike X of 3"
+  if (els.strikeToast){
+    els.strikeToast.textContent = "Strike " + n + " of 3";
+    els.strikeToast.classList.add("show");
+    setTimeout(function(){ els.strikeToast.classList.remove("show"); }, 1200);
+  }
+}
+
+
 function renderQuestion(){
   var q = QUESTIONS[idx];
   endReason = "complete";
@@ -301,14 +336,14 @@ function handleGuess(){
 
   if (foundIndex !== -1){
     reveal(foundIndex); els.input.value = ""; try{ els.input.focus(); }catch(_){}
-  } else {
-    strikes = Math.min(strikes+1,3); updateStrikes();
-    if (strikes >= 3){
-      // mark failure; revealing the last tile will call finishRound("failed")
-      endReason = "failed";
-      q.answers.forEach(function(_,i){ if (!revealed.has(i)) reveal(i); });
-    }
+} else {
+  strikes = Math.min(strikes+1,3); updateStrikes();
+  strikeFeedback(strikes);
+  if (strikes >= 3){
+    endReason = "failed";
+    q.answers.forEach(function(_,i){ if (!revealed.has(i)) reveal(i); });
   }
+}
 }
 
 // ===== Google Sheets loader (CSV first, GViz JSONP fallback) =====
