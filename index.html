@@ -25,7 +25,15 @@
     .hidden{display:none!important}
     .app{width:min(520px,92vw);margin-top:24px}
     .sitebar{height:56px;display:flex;align-items:center;justify-content:center;width:100%;margin-bottom:12px}
-    .brand{font-weight:800;letter-spacing:.3px;color:var(--text)}
+.brand{
+  font-weight:800;
+  letter-spacing:.2px;
+  color: var(--accent);           /* orange */
+  font-size: clamp(12px, 2.8vw, 14px); /* smaller on small screens */
+  white-space: nowrap;            /* keep to one line */
+  overflow: hidden;               /* avoid overflow on tiny screens */
+  text-overflow: ellipsis;        /* add … if it’s ultra-narrow */
+}
     .card{background:var(--card);border:1px solid #e5e7eb;border-radius:16px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.06)}
     .title{font-size:clamp(22px,3.5vw,30px);margin:6px 0 2px;font-weight:800;letter-spacing:.2px;text-align:center; color: var(--accent);           /* NEW */
 }
