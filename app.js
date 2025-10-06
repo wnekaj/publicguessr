@@ -37,13 +37,12 @@ var els = {
   modalBackdrop: document.getElementById("modalBackdrop"),
   // date
   dailyDate: document.getElementById("dailyDate"),
-  // email + source
+  // email + source + strike toast
   emailForm: document.getElementById("emailForm"),
   emailInput: document.getElementById("emailInput"),
   emailMsg: document.getElementById("emailMsg"),
-  sourceNote: document.getElementById("sourceNote")
-  strikeToast: document.getElementById("strikeToast"),
-
+  sourceNote: document.getElementById("sourceNote"),
+  strikeToast: document.getElementById("strikeToast")
 };
 
 function norm(s){ return s.toLowerCase().replace(/[^a-z0-9\s-]/g,"").trim(); }
@@ -52,19 +51,9 @@ function norm(s){ return s.toLowerCase().replace(/[^a-z0-9\s-]/g,"").trim(); }
 const DAILY_MODE = true;
 const DAILY_TZ   = "Europe/London"; // valid IANA tz
 const MAX_ANSWERS = 5;
-// Use a fixed season anchor so everyone computes the same offset.
-// Pick any recent date; changing it starts a new rotation season.
+
+// Global deterministic daily rotation anchor (everyone same question if no date column)
 const GLOBAL_ANCHOR = "2025-07-09"; // YYYY-MM-DD in Europe/London terms
-
-function pickIndexGlobal(qMap, todayKey){
-  var total = qMap.length;
-  if (!total) return 0;
-  var offset = daysSince(GLOBAL_ANCHOR, todayKey);
-  if (offset < 0) offset = -offset;             // safety if clocks differ
-  var pos = offset % total;                     // rotates through all questions
-  return qMap[pos].idx;                         // map back to QUESTIONS index
-}
-
 
 // Fallback if DAILY_TZ ever gets set to something invalid
 function safeTZ(){
@@ -111,7 +100,7 @@ function startDailyTickerLondon(){
   _tickerId = setInterval(render, 1000);
 }
 
-// ----- No-repeat engine (auto-resets when the question set changes) -----
+// ----- helpers for deterministic/global pick -----
 function ymdFromKey(key){ var p = key.split("-"); return { y:+p[0], m:+p[1], d:+p[2] }; }
 function daysFromYMD(y,m,d){ return Math.floor(Date.UTC(y, m-1, d) / 86400000); }
 function daysSince(aKey, bKey){
@@ -129,32 +118,13 @@ function buildQuestionMap(){
   arr.sort(function(a,b){ return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0); });
   return arr;
 }
-function poolSignature(map){
-  var ids = map.map(function(x){ return x.id; });
-  return ids.join("|");
-}
-function getSeasonAnchor(todayKey, sig){
-  var savedSig = null, savedAnchor = null;
-  try {
-    savedSig   = localStorage.getItem("ff_pool_sig");
-    savedAnchor= localStorage.getItem("ff_anchor");
-  } catch(e){}
-  if (savedSig !== sig){
-    try { localStorage.setItem("ff_pool_sig", sig); localStorage.setItem("ff_anchor", todayKey); } catch(e){}
-    return todayKey;
-  }
-  if (!savedAnchor){
-    try { localStorage.setItem("ff_anchor", todayKey); } catch(e){}
-    return todayKey;
-  }
-  return savedAnchor;
-}
-function pickIndexNoRepeat(map, todayKey, anchorKey){
-  var total = map.length;
+function pickIndexGlobal(qMap, todayKey){
+  var total = qMap.length;
   if (!total) return 0;
-  var offset = daysSince(anchorKey, todayKey);
-  var pos = ((offset % total) + total) % total;
-  return map[pos].idx;
+  var offset = daysSince(GLOBAL_ANCHOR, todayKey);
+  if (offset < 0) offset = -offset;
+  var pos = offset % total;
+  return qMap[pos].idx;
 }
 
 // ===== Modal helpers =====
@@ -216,38 +186,30 @@ function ensureSourceNote(){
   els.sourceNote = note;
 }
 
+// clearer strike feedback
 function strikeFeedback(n){
-  // n = current strike count (1..3)
   var dots = [els.strike1, els.strike2, els.strike3];
   var target = dots[n-1];
 
-  // Pop the dot that was just earned
   if (target){
     target.classList.add("boom");
     setTimeout(function(){ target.classList.remove("boom"); }, 600);
   }
-
-  // Shake the input
   if (els.input){
     els.input.classList.add("shake");
     setTimeout(function(){ els.input.classList.remove("shake"); }, 450);
   }
-
-  // Brief red flash on the card
   var card = document.getElementById("card");
   if (card){
     card.classList.add("card-flash");
     setTimeout(function(){ card.classList.remove("card-flash"); }, 300);
   }
-
-  // Small toast "Strike X of 3"
   if (els.strikeToast){
     els.strikeToast.textContent = "Strike " + n + " of 3";
     els.strikeToast.classList.add("show");
     setTimeout(function(){ els.strikeToast.classList.remove("show"); }, 1200);
   }
 }
-
 
 function renderQuestion(){
   var q = QUESTIONS[idx];
@@ -274,12 +236,10 @@ function renderQuestion(){
 }
 
 function finishRound(reason){
-  // disable inputs
   els.input.disabled = true; els.guessBtn.disabled = true;
   if (els.nextBtn) els.nextBtn.classList.add("hidden");
 
   var q = QUESTIONS[idx];
-  // set headline text + modal
   if (reason === "failed"){
     els.questionText.textContent = q.question + " - You're out of guesses!";
     showModal("You're out of guesses!", "You have run out of guesses and been defeated by the public. Try again tomorrow.");
@@ -314,7 +274,6 @@ function reveal(i){
     }
     fill.removeEventListener("transitionend", onDone);
 
-    // End-of-round check — if we revealed all tiles, end with the stored reason
     var totalToReveal = Math.min(q.answers.length, els.board.children.length);
     if (revealed.size >= totalToReveal) finishRound(endReason);
   };
@@ -336,14 +295,14 @@ function handleGuess(){
 
   if (foundIndex !== -1){
     reveal(foundIndex); els.input.value = ""; try{ els.input.focus(); }catch(_){}
-} else {
-  strikes = Math.min(strikes+1,3); updateStrikes();
-  strikeFeedback(strikes);
-  if (strikes >= 3){
-    endReason = "failed";
-    q.answers.forEach(function(_,i){ if (!revealed.has(i)) reveal(i); });
+  } else {
+    strikes = Math.min(strikes+1,3); updateStrikes();
+    strikeFeedback(strikes);
+    if (strikes >= 3){
+      endReason = "failed";
+      q.answers.forEach(function(_,i){ if (!revealed.has(i)) reveal(i); });
+    }
   }
-}
 }
 
 // ===== Google Sheets loader (CSV first, GViz JSONP fallback) =====
@@ -423,6 +382,7 @@ function loadViaGvizJSONP(publishedUrl,timeoutMs){
   });
 }
 
+// ---- optional date column support ----
 function normalizeDateYMD(s){
   s = String(s||"").trim();
   if (!s) return "";
@@ -445,18 +405,16 @@ function normalizeDateYMD(s){
   return "";
 }
 
-
 function rowsToQA(rows){
   var header = rows[0].map(function(h){ return String(h||"").trim().toLowerCase(); });
-  var di = header.indexOf("date");            // <— NEW
+  var di = header.indexOf("date");
   var qi = header.indexOf("question"), ai = header.indexOf("answer"), si = header.indexOf("score"), li = header.indexOf("aliases");
   if (qi<0 || ai<0 || si<0) throw new Error("Missing required headers");
 
-  // group by date+question so multiple answer rows form one question block
   var byKey = new Map();
   rows.slice(1).forEach(function(row){
     if (!row || !row.length) return;
-    var dt = di>=0 ? normalizeDateYMD(row[di]) : "";           // <— NEW
+    var dt = di>=0 ? normalizeDateYMD(row[di]) : "";
     var q  = (row[qi]||"").trim();
     var a  = (row[ai]||"").trim();
     var sText = String(row[si]==null ? "" : row[si]).trim();
@@ -464,7 +422,7 @@ function rowsToQA(rows){
     var l     = li>=0 ? (row[li]||"") : "";
     if (!q || !a) return;
 
-    var key = (dt||"") + "||" + q;                              // <— NEW
+    var key = (dt||"") + "||" + q;
     if (!byKey.has(key)) byKey.set(key, { date: dt, question: q, answers: [] });
     byKey.get(key).answers.push({
       text:a,
@@ -497,33 +455,27 @@ function loadQuestions(){
 (function init(){
   loadQuestions().then(function(data){
     if (data && data.length){
-      if (data !== QUESTIONS){ while (QUESTIONS.length) QUESTIONS.pop(); data.forEach(function(q){ QUESTIONS.push(q); }); }
+      if (data !== QUESTIONS){
+        while (QUESTIONS.length) QUESTIONS.pop();
+        data.forEach(function(q){ QUESTIONS.push(q); });
+      }
     }
-    if (DAILY_MODE){
-  DAY_KEY = getDayKey();
-  var qMap = buildQuestionMap();     // stable, sorted by normalized question text
-  var sig  = poolSignature(qMap);    // kept for optional pinning use below
-  idx = pickIndexGlobal(qMap, DAY_KEY);
-}
 
-    if (DAILY_MODE){
-  DAY_KEY = getDayKey();
-  // If the sheet has dated questions, show today’s only
-  var todays = (QUESTIONS || []).filter(function(q){ return (q.date || "") === DAY_KEY; });
-  if (todays.length){
-    // show the first (sorted by our existing stable ordering below)
-    QUESTIONS = todays;
-    idx = 0;
-  } else {
-    // fallback: your existing deterministic pick across all questions
-    var qMap = buildQuestionMap();           // already sorts by normalized question id
-    var sig  = poolSignature(qMap);
-    var anchor = getSeasonAnchor(DAY_KEY, sig);
-    idx = pickIndexNoRepeat(qMap, DAY_KEY, anchor);
-  }
-}
+    DAY_KEY = getDayKey();
 
-    
+    // Prefer sheet-driven date selection if present
+    var todays = (QUESTIONS || []).filter(function(q){ return (q.date || "") === DAY_KEY; });
+    if (DAILY_MODE && todays.length){
+      QUESTIONS = todays;
+      idx = 0;
+    } else if (DAILY_MODE) {
+      // fallback: deterministic global pick (same for everyone)
+      var qMap = buildQuestionMap();
+      idx = pickIndexGlobal(qMap, DAY_KEY);
+    } else {
+      idx = 0;
+    }
+
     startDailyTickerLondon();
     renderQuestion();
   }).catch(function(err){
