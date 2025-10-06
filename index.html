@@ -119,13 +119,59 @@
     }
     .email-btn:hover{ background:#fff7ed; border-color:#f59e0b; }
     .email-msg{ font-size:12px; color:#6b7280; align-self:center; }
+
+    /* Strike feedback: toast + animations */
+.strike-toast{
+  display:flex; justify-content:center;
+  font-size:12px; color:#991b1b;
+  background:#fee2e2; border:1px solid #fecaca;
+  border-radius:9999px; padding:4px 10px; margin:6px 0 0;
+  opacity:0; transform:translateY(-6px);
+  pointer-events:none;
+  transition:opacity .18s ease, transform .18s ease;
+}
+.strike-toast.show{ opacity:1; transform:translateY(0); }
+
+/* Input shake on wrong guess */
+@keyframes shake {
+  0%{transform:translateX(0)}
+  15%{transform:translateX(-5px)}
+  30%{transform:translateX(5px)}
+  45%{transform:translateX(-4px)}
+  60%{transform:translateX(4px)}
+  75%{transform:translateX(-2px)}
+  90%{transform:translateX(2px)}
+  100%{transform:translateX(0)}
+}
+input.shake{ animation:shake .45s ease; }
+
+/* Card subtle red flash */
+#card.card-flash{
+  box-shadow:0 0 0 4px rgba(239,68,68,.16), 0 10px 30px rgba(0,0,0,.06);
+  border-color:#fecaca;
+  transition:box-shadow .25s ease, border-color .25s ease;
+}
+
+/* Pop the newly-lit strike dot */
+@keyframes dot-pop {
+  0%{ transform:scale(1); }
+  40%{ transform:scale(1.55); }
+  100%{ transform:scale(1.05); }
+}
+.strike-dot.boom{
+  animation:dot-pop .35s ease-out;
+  background:rgba(239,68,68,.35);
+  border-color:rgba(239,68,68,.7);
+  opacity:1;
+}
+    
   </style>
 </head>
 <body>
   <div class="app">
     <header class="sitebar"><div class="brand">Can you guess what the British Public thinks?</div></header>
 
-    <div class="card">
+<div class="card" id="card">
       <h1 class="title">Crowdsense</h1>
       <div class="datebar" id="dailyDate"></div>
       <p class="subtitle" id="questionText">Loading...</p>
@@ -141,6 +187,8 @@
         <span id="strike2" class="strike-dot" title="Strike 2"></span>
         <span id="strike3" class="strike-dot" title="Strike 3"></span>
       </div>
+
+  <div id="strikeToast" class="strike-toast" aria-live="polite"></div>
 
       <div class="board" id="board"></div>
 
