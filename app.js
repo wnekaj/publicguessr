@@ -54,6 +54,7 @@ const MAX_ANSWERS = 5;
 const BLUR_ON_CORRECT = true;
 
 
+
 // Global deterministic daily rotation anchor (everyone same question if no date column)
 const GLOBAL_ANCHOR = "2025-07-09"; // YYYY-MM-DD in Europe/London terms
 
@@ -285,32 +286,48 @@ function reveal(i){
 }
 
 function handleGuess(){
-  var guess = norm(els.input.value); if (!guess) return;
-  var q = QUESTIONS[idx], foundIndex = -1;
+  var raw = els.input ? els.input.value : "";
+  var guess = norm(raw);
+  if (!guess) return;
 
-  q.answers.forEach(function(ans,i){
-    if (foundIndex !== -1){
-  reveal(foundIndex);
-  if (BLUR_ON_CORRECT && els.input) els.input.blur(); // drop the keyboard
-  els.input.value = "";
-  try{ els.input.focus(); }catch(_){}
-} return;
-    if (revealed.has(i)) return;
+  var q = QUESTIONS[idx];
+  var foundIndex = -1;
+
+  // Find first unrevealed match
+  for (var i=0; i<q.answers.length; i++){
+    if (revealed.has(i)) continue;
+    var ans = q.answers[i];
     var candidates = [ans.text].concat(ans.aliases||[]).map(norm);
-    if (candidates.indexOf(guess) !== -1) foundIndex = i;
-  });
-
-  if (foundIndex !== -1){
-    reveal(foundIndex); els.input.value = ""; try{ els.input.focus(); }catch(_){}
-  } else {
-    strikes = Math.min(strikes+1,3); updateStrikes();
-    strikeFeedback(strikes);
-    if (strikes >= 3){
-      endReason = "failed";
-      q.answers.forEach(function(_,i){ if (!revealed.has(i)) reveal(i); });
+    if (candidates.indexOf(guess) !== -1){
+      foundIndex = i;
+      break;
     }
   }
+
+  if (foundIndex !== -1){
+    // Correct
+    reveal(foundIndex);
+
+    // Hide the keyboard after this event finishes
+    if (BLUR_ON_CORRECT && els.input){
+      setTimeout(function(){ els.input.blur(); }, 0);
+    }
+
+    // Clear the field and STOP — do not fall into strike logic
+    els.input.value = "";
+    return;
+  }
+
+  // Wrong
+  strikes = Math.min(strikes+1, 3);
+  updateStrikes();
+  strikeFeedback(strikes);
+  if (strikes >= 3){
+    endReason = "failed";
+    q.answers.forEach(function(_,i){ if (!revealed.has(i)) reveal(i); });
+  }
 }
+
 
 // ===== Google Sheets loader (CSV first, GViz JSONP fallback) =====
 var SHEET_PUBLISHED_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6_gEjPFb7k4tHmguxmp_4qHlObR7JAY5V1UtktCGS0BbfoehJd13fYv5iI4qZ1HjlEwkUxGqM0Aod/pubhtml";
