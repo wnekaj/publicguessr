@@ -51,6 +51,8 @@ function norm(s){ return s.toLowerCase().replace(/[^a-z0-9\s-]/g,"").trim(); }
 const DAILY_MODE = true;
 const DAILY_TZ   = "Europe/London"; // valid IANA tz
 const MAX_ANSWERS = 5;
+const BLUR_ON_CORRECT = true;
+
 
 // Global deterministic daily rotation anchor (everyone same question if no date column)
 const GLOBAL_ANCHOR = "2025-07-09"; // YYYY-MM-DD in Europe/London terms
@@ -287,7 +289,12 @@ function handleGuess(){
   var q = QUESTIONS[idx], foundIndex = -1;
 
   q.answers.forEach(function(ans,i){
-    if (foundIndex !== -1) return;
+    if (foundIndex !== -1){
+  reveal(foundIndex);
+  if (BLUR_ON_CORRECT && els.input) els.input.blur(); // drop the keyboard
+  els.input.value = "";
+  try{ els.input.focus(); }catch(_){}
+} return;
     if (revealed.has(i)) return;
     var candidates = [ans.text].concat(ans.aliases||[]).map(norm);
     if (candidates.indexOf(guess) !== -1) foundIndex = i;
