@@ -387,27 +387,66 @@ function loadViaGvizJSONP(publishedUrl,timeoutMs){
     }catch(e){ reject(e); }
   });
 }
+
+function normalizeDateYMD(s){
+  s = String(s||"").trim();
+  if (!s) return "";
+  var m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s); // YYYY-MM-DD
+  if (m) return m[1] + "-" + m[2].padStart(2,"0") + "-" + m[3].padStart(2,"0");
+  m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);   // DD/MM/YYYY
+  if (m) return m[3] + "-" + m[2].padStart(2,"0") + "-" + m[1].padStart(2,"0");
+  var t = Date.parse(s);                            // e.g. "9 Jul 2025"
+  if (!isNaN(t)){
+    var d = new Date(t);
+    var parts = new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/London",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(d);
+    var y="",m2="",d2="";
+    for (var i=0;i<parts.length;i++){
+      if (parts[i].type==="year") y=parts[i].value;
+      else if (parts[i].type==="month") m2=parts[i].value;
+      else if (parts[i].type==="day") d2=parts[i].value;
+    }
+    return y+"-"+m2+"-"+d2;
+  }
+  return "";
+}
+
+
 function rowsToQA(rows){
   var header = rows[0].map(function(h){ return String(h||"").trim().toLowerCase(); });
+  var di = header.indexOf("date");            // <— NEW
   var qi = header.indexOf("question"), ai = header.indexOf("answer"), si = header.indexOf("score"), li = header.indexOf("aliases");
   if (qi<0 || ai<0 || si<0) throw new Error("Missing required headers");
-  var byQ = new Map();
+
+  // group by date+question so multiple answer rows form one question block
+  var byKey = new Map();
   rows.slice(1).forEach(function(row){
     if (!row || !row.length) return;
-    var q = (row[qi]||"").trim();
-    var a = (row[ai]||"").trim();
+    var dt = di>=0 ? normalizeDateYMD(row[di]) : "";           // <— NEW
+    var q  = (row[qi]||"").trim();
+    var a  = (row[ai]||"").trim();
     var sText = String(row[si]==null ? "" : row[si]).trim();
-    var sNum = Number(sText.replace(/[^0-9.+-]/g,""));
-    var l = li>=0 ? (row[li]||"") : "";
+    var sNum  = Number(sText.replace(/[^0-9.+-]/g,""));
+    var l     = li>=0 ? (row[li]||"") : "";
     if (!q || !a) return;
-    if (!byQ.has(q)) byQ.set(q, []);
-    byQ.get(q).push({ text:a, score:isFinite(sNum)?sNum:0, aliases:l.split("|").map(function(x){return x.trim();}).filter(function(x){return !!x;}) });
+
+    var key = (dt||"") + "||" + q;                              // <— NEW
+    if (!byKey.has(key)) byKey.set(key, { date: dt, question: q, answers: [] });
+    byKey.get(key).answers.push({
+      text:a,
+      score: isFinite(sNum)?sNum:0,
+      aliases: l.split("|").map(function(x){return x.trim();}).filter(function(x){return !!x;})
+    });
   });
+
   var out = [];
-  byQ.forEach(function(answers,question){ answers.sort(function(x,y){ return y.score - x.score; }); out.push({question:question, answers:answers}); });
+  byKey.forEach(function(block){
+    block.answers.sort(function(x,y){ return y.score - x.score; });
+    out.push(block); // { date, question, answers }
+  });
   if (!out.length) throw new Error("Parsed 0 questions");
   return out;
 }
+
 function loadQuestions(){
   return loadViaCSV(SHEET_PUBLISHED_URL)
     .then(function(rows){ var out = rowsToQA(rows); console.log("Loaded "+out.length+" questions via CSV"); return out; })
@@ -432,6 +471,24 @@ function loadQuestions(){
   idx = pickIndexGlobal(qMap, DAY_KEY);
 }
 
+    if (DAILY_MODE){
+  DAY_KEY = getDayKey();
+  // If the sheet has dated questions, show today’s only
+  var todays = (QUESTIONS || []).filter(function(q){ return (q.date || "") === DAY_KEY; });
+  if (todays.length){
+    // show the first (sorted by our existing stable ordering below)
+    QUESTIONS = todays;
+    idx = 0;
+  } else {
+    // fallback: your existing deterministic pick across all questions
+    var qMap = buildQuestionMap();           // already sorts by normalized question id
+    var sig  = poolSignature(qMap);
+    var anchor = getSeasonAnchor(DAY_KEY, sig);
+    idx = pickIndexNoRepeat(qMap, DAY_KEY, anchor);
+  }
+}
+
+    
     startDailyTickerLondon();
     renderQuestion();
   }).catch(function(err){
