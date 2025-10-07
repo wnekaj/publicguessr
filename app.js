@@ -80,6 +80,37 @@ function getDayKey(){
   return y+"-"+m+"-"+d;
 }
 
+function getYesterdayKey(key){
+  var p = key.split("-").map(Number);
+  var d = new Date(Date.UTC(p[0], p[1]-1, p[2]));
+  d.setUTCDate(d.getUTCDate()-1);
+  return d.toISOString().slice(0,10);
+}
+
+function readStreak(){
+  var c = parseInt(localStorage.getItem("streakCount")||"0",10);
+  var last = localStorage.getItem("lastWinDate")||"";
+  return { count: isFinite(c)?c:0, last:last };
+}
+function writeStreak(count, lastDate){
+  try{
+    localStorage.setItem("streakCount", String(count));
+    localStorage.setItem("lastWinDate", lastDate||"");
+  }catch(_){}
+}
+
+function updateStreakBadge(){
+  var el = document.getElementById("streakBadge");
+  if (!el) return;
+  var s = readStreak();
+  // show streak if you’re on a run (last win was yesterday or today)
+  var show = (s.count>0) && (s.last===DAY_KEY || s.last===getYesterdayKey(DAY_KEY));
+  if (!show){ el.classList.add("hidden"); return; }
+  el.textContent = "🔥 " + s.count;
+  el.classList.remove("hidden");
+}
+
+
 // Live date + time ticker in Europe/London (24h, with seconds)
 var _tickerId = null;
 function startDailyTickerLondon(){
@@ -254,6 +285,17 @@ function finishRound(reason){
   if (DAILY_MODE){
     try{ localStorage.setItem("played-"+DAY_KEY, "1"); }catch(_){}
   }
+   // --- streak logic (add this) ---
+  var s = readStreak();
+  if (reason === "failed"){
+    writeStreak(0, DAY_KEY);
+  } else {
+    var expectedPrev = getYesterdayKey(DAY_KEY);
+    var nextCount = (s.last === expectedPrev) ? (s.count + 1) : 1;
+    writeStreak(nextCount, DAY_KEY);
+  }
+  updateStreakBadge();
+  // --- end streak logic ---
 }
 
 function reveal(i){
@@ -502,6 +544,7 @@ function loadQuestions(){
 
     startDailyTickerLondon();
     renderQuestion();
+    updateStreakBadge();
   }).catch(function(err){
     console.error("Init failed", err);
     startDailyTickerLondon();
