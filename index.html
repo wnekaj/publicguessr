@@ -25,26 +25,45 @@
     .hidden{display:none!important}
     .app{width:min(520px,92vw);margin-top:24px}
     .sitebar{height:56px;display:flex;align-items:center;justify-content:center;width:100%;margin-bottom:12px}
-.brand{
-  font-weight:800;
-  letter-spacing:.2px;
-  color: var(--accent);           /* orange */
-  font-size: clamp(12px, 2.8vw, 14px); /* smaller on small screens */
-  white-space: nowrap;            /* keep to one line */
-  overflow: hidden;               /* avoid overflow on tiny screens */
-  text-overflow: ellipsis;        /* add … if it’s ultra-narrow */
-}
+    .brand{
+      font-weight:800;letter-spacing:.2px;color:var(--accent);
+      font-size:clamp(22px,3.5vw,30px);
+    }
     .card{background:var(--card);border:1px solid #e5e7eb;border-radius:16px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.06)}
-    .title{font-size:clamp(22px,3.5vw,30px);margin:6px 0 2px;font-weight:800;letter-spacing:.2px;text-align:center; color: var(--accent);           /* NEW */
-}
-    .datebar{color:var(--muted);text-align:center;font-size:12px;margin:0 0 6px}
+
+    /* Tagline inside card, same colour as answers */
+    .tagline{
+      color:var(--text);
+      font-weight:800;
+      text-align:center;
+      font-size:clamp(14px,4vw,18px);
+      line-height:1.25;
+      margin:6px 0 2px;
+    }
+
+    /* Date + streak pill row */
+    .datebar{
+      display:flex;justify-content:center;align-items:center;gap:8px;
+      color:var(--muted);font-size:12px;margin:0 0 6px;
+    }
+    .streak-pill{
+      display:none;align-items:center;gap:6px;
+      padding:2px 8px;border:1px solid #fde68a;background:#fffbeb;color:#92400e;
+      border-radius:9999px;font-weight:700;font-size:12px;line-height:1;
+    }
+
     .subtitle{color:var(--muted);margin:0 0 12px;text-align:center;font-size:14px}
+
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
     input[type="text"]{
       flex:1 1 280px;font-size:18px;padding:12px 14px;border-radius:12px;border:1px solid #e5e7eb;background:#fff;color:var(--text);
       outline:none;transition:box-shadow .2s ease,border-color .2s ease
     }
+    /* smaller placeholder */
+    input[type="text"]::placeholder{font-size:14px;color:#9ca3af}
     input[type="text"]:focus{border-color:#fdba74;box-shadow:0 0 0 4px rgba(249,115,22,.15)}
+
+    /* Buttons (Submit + Subscribe share this spec) */
     button{
       border:2px solid var(--accent);
       border-radius:12px;
@@ -56,15 +75,8 @@
       color:var(--accent);
       transition:transform .05s ease-in-out, box-shadow .2s ease, background .15s ease, border-color .15s ease;
       box-shadow:0 2px 6px rgba(0,0,0,.05);
+      font-family:inherit;
     }
-
-    /* smaller placeholder for "Type your guess..." */
-input[type="text"]::placeholder{
-  font-size:14px;   /* was inheriting 18px */
-  color:#9ca3af;    /* optional: slightly softer */
-}
-
-    
     button:hover{
       transform:translateY(-1px);
       box-shadow:0 6px 14px rgba(0,0,0,.10);
@@ -73,7 +85,7 @@ input[type="text"]::placeholder{
     }
     button:active{ transform:translateY(0); box-shadow:0 2px 6px rgba(0,0,0,.06); }
 
-    /* Strike bar (centered under input) */
+    /* Centered strike bar */
     .strikebar{ display:flex; gap:16px; margin:8px 0 4px; align-items:center; justify-content:center; }
     .strike-dot{
       width:14px;height:14px;border-radius:9999px;
@@ -83,13 +95,23 @@ input[type="text"]::placeholder{
     }
     .strike-dot.active{opacity:1; transform:scale(1.05);}
 
+    /* Today’s badges row */
+    .badge-row{
+      display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;
+      min-height:20px;margin:4px 0 4px;font-size:12px;
+    }
+    .badge-item{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:2px 8px;border:1px solid #e5e7eb;background:#fff;border-radius:9999px;color:#111827;
+    }
+
     .board{display:grid;grid-template-columns:1fr;gap:10px;margin:12px 0 16px}
 
-    /* Tiles (shorter height) */
+    /* Tiles (slightly shorter) */
     .tile{
       position:relative;overflow:hidden;
       background:#fff;border:1px solid #e5e7eb;border-radius:12px;
-      padding:12px 14px;min-height:48px;
+      padding:10px 12px;min-height:44px;
       display:flex;align-items:center;justify-content:space-between;font-weight:800;
       transition:box-shadow .2s ease,border-color .2s ease
     }
@@ -97,16 +119,12 @@ input[type="text"]::placeholder{
       position:absolute;left:0;top:0;height:100%;width:0%;
       background:rgba(249,115,22,.18);transition:width 850ms ease-out
     }
-    .tile .tile-content{
-      position:relative;z-index:2;width:100%;
-      display:flex;align-items:center;justify-content:space-between
-    }
+    .tile .tile-content{ position:relative;z-index:2;width:100%;display:flex;align-items:center;justify-content:space-between }
     .tile.revealed{background:#fff4e6;border-color:#fdba74;box-shadow:0 6px 16px rgba(249,115,22,.12)}
     .answer{text-transform:uppercase;letter-spacing:.5px}
     .points{color:#f97316;font-variant-numeric:tabular-nums;letter-spacing:.2px;margin-left:8px}
 
-    /* Old HUD hidden (kept for JS compatibility) */
-    .hud{display:none}
+    .hud{display:none} /* keep for JS compatibility */
 
     /* Modal */
     .modal-root{position:fixed;inset:0;z-index:50}
@@ -128,151 +146,72 @@ input[type="text"]::placeholder{
       min-width:220px; border:1px solid #e5e7eb; border-radius:12px; padding:10px 12px; font-size:14px;
       outline:none; background:#fff; color:#0b0f19;
       transition:box-shadow .2s ease, border-color .2s ease;
+      font-family:inherit;
     }
     .email-form input[type="email"]:focus{ border-color:#fdba74; box-shadow:0 0 0 4px rgba(249,115,22,.15); }
-    .email-btn{
-  border:2px solid var(--accent);
-  border-radius:12px;
-  padding:12px 16px;
-  font-size:16px;
-  font-weight:700;
-  cursor:pointer;
-  background:#ffffff;      /* white fill */
-  color:var(--accent);     /* orange text */
-  transition:transform .05s ease-in-out, box-shadow .2s ease, background .15s ease, border-color .15s ease;
-  box-shadow:0 2px 6px rgba(0,0,0,.05);
-  font-family: inherit;    /* ensure identical font */
-}
-.email-btn:hover{
-  transform:translateY(-1px);
-  box-shadow:0 6px 14px rgba(0,0,0,.10);
-  background:#fff7ed;
-  border-color:#f59e0b;
-}
-.email-btn:active{
-  transform:translateY(0);
-  box-shadow:0 2px 6px rgba(0,0,0,.06);
-}
-
-    .email-msg{ font-size:12px; color:#6b7280; align-self:center; }
 
     /* Strike feedback: toast + animations */
-.strike-toast{
-  display:flex; justify-content:center;
-  font-size:12px; color:#991b1b;
-  background:#fee2e2; border:1px solid #fecaca;
-  border-radius:9999px; padding:4px 10px; margin:6px 0 0;
-  opacity:0; transform:translateY(-6px);
-  pointer-events:none;
-  transition:opacity .18s ease, transform .18s ease;
-}
-.strike-toast.show{ opacity:1; transform:translateY(0); }
+    .strike-toast{
+      display:flex; justify-content:center;
+      font-size:12px; color:#991b1b;
+      background:#fee2e2; border:1px solid #fecaca;
+      border-radius:9999px; padding:4px 10px; margin:6px 0 0;
+      opacity:0; transform:translateY(-6px);
+      pointer-events:none;
+      transition:opacity .18s ease, transform .18s ease;
+    }
+    .strike-toast.show{ opacity:1; transform:translateY(0); }
 
-/* Input shake on wrong guess */
-@keyframes shake {
-  0%{transform:translateX(0)}
-  15%{transform:translateX(-5px)}
-  30%{transform:translateX(5px)}
-  45%{transform:translateX(-4px)}
-  60%{transform:translateX(4px)}
-  75%{transform:translateX(-2px)}
-  90%{transform:translateX(2px)}
-  100%{transform:translateX(0)}
-}
-input.shake{ animation:shake .45s ease; }
+    @keyframes shake { 0%{transform:translateX(0)} 15%{transform:translateX(-5px)} 30%{transform:translateX(5px)} 45%{transform:translateX(-4px)} 60%{transform:translateX(4px)} 75%{transform:translateX(-2px)} 90%{transform:translateX(2px)} 100%{transform:translateX(0)} }
+    input.shake{ animation:shake .45s ease; }
 
-/* Card subtle red flash */
-#card.card-flash{
-  box-shadow:0 0 0 4px rgba(239,68,68,.16), 0 10px 30px rgba(0,0,0,.06);
-  border-color:#fecaca;
-  transition:box-shadow .25s ease, border-color .25s ease;
-}
+    #card.card-flash{ box-shadow:0 0 0 4px rgba(239,68,68,.16), 0 10px 30px rgba(0,0,0,.06); border-color:#fecaca; transition:box-shadow .25s ease, border-color .25s ease; }
 
-/* Pop the newly-lit strike dot */
-@keyframes dot-pop {
-  0%{ transform:scale(1); }
-  40%{ transform:scale(1.55); }
-  100%{ transform:scale(1.05); }
-}
-.strike-dot.boom{
-  animation:dot-pop .35s ease-out;
-  background:rgba(239,68,68,.35);
-  border-color:rgba(239,68,68,.7);
-  opacity:1;
-}
-
-    /* Header brand (now the main title) */
-.brand{
-  font-weight:800;
-  letter-spacing:.2px;
-  color: var(--accent);                 /* orange */
-  font-size: clamp(22px, 3.5vw, 30px);  /* big, responsive */
-}
-
-/* Tagline inside the card */
-.tagline{
-  color: var(--text);                /* match answer colour */
-  font-weight: 700;
-  text-align: center;
-  font-size: clamp(14px, 4vw, 18px); /* comfy 1–2 lines on mobile */
-  line-height: 1.35;
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-  margin: 6px 0 2px;
-}
-
-
-
-    
+    @keyframes dot-pop { 0%{ transform:scale(1) } 40%{ transform:scale(1.55) } 100%{ transform:scale(1.05) } }
+    .strike-dot.boom{ animation:dot-pop .35s ease-out; background:rgba(239,68,68,.35); border-color:rgba(239,68,68,.7); opacity:1; }
   </style>
 </head>
 <body>
   <div class="app">
-<header class="sitebar">
-  <div class="brand">Crowdsense</div>
-</header>
+    <header class="sitebar"><div class="brand">Crowdsense</div></header>
 
-<div class="card" id="card">
-<p class="tagline">How well do you know the British public?</p>
-      <div class="datebar" id="dailyDate"></div>
+    <div class="card" id="card">
+      <p class="tagline">Can you guess what the British public thinks?</p>
+
+      <div class="datebar">
+        <span id="dailyDate"></span>
+        <span id="streakPill" class="streak-pill"></span>
+      </div>
+
+      <div id="badgeRow" class="badge-row" aria-live="polite"></div>
+
       <p class="subtitle" id="questionText">Loading...</p>
 
       <div class="row" style="margin-bottom:4px;">
-        <input id="guessInput" type="text" placeholder="Type your guess..." autocomplete="off" />
-<button id="guessBtn" type="button">Submit</button>
+        <input id="guessInput" type="text" placeholder="Type your guess..." autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" />
+        <button id="guessBtn" type="button">Submit</button>
       </div>
 
-      <!-- Strike bar under input -->
       <div class="strikebar" id="strikeBar" aria-label="strikes">
         <span id="strike1" class="strike-dot" title="Strike 1"></span>
         <span id="strike2" class="strike-dot" title="Strike 2"></span>
         <span id="strike3" class="strike-dot" title="Strike 3"></span>
       </div>
 
-  <div id="strikeToast" class="strike-toast" aria-live="polite"></div>
+      <div id="strikeToast" class="strike-toast" aria-live="polite"></div>
 
       <div class="board" id="board"></div>
 
-      <!-- Source + email -->
       <p id="sourceNote" class="source-note">
         Source: Public First Poll of 2,106 UK Adults from 9th Jul – 14th July 2025
       </p>
 
       <form id="emailForm" class="email-form" action="https://formspree.io/f/mgvnzepd" method="POST">
-        <input
-          id="emailInput"
-          name="email"
-          type="email"
-          placeholder="Get tomorrow’s question by email"
-          required
-          autocomplete="email"
-        />
-        <button type="submit" class="email-btn">Subscribe</button>
+        <input id="emailInput" name="email" type="email" placeholder="Get tomorrow's question by email" required autocomplete="email" />
+        <button type="submit" class="">Subscribe</button>
         <span id="emailMsg" class="email-msg" role="status" aria-live="polite"></span>
       </form>
 
-      <!-- keep hidden for JS compatibility -->
       <div class="hud">
         <div class="score">Score: <span id="score">0%</span></div>
         <button id="nextBtn" class="secondary hidden">Next question</button>
@@ -280,7 +219,6 @@ input.shake{ animation:shake .45s ease; }
     </div>
   </div>
 
-  <!-- Modal -->
   <div id="modal" class="modal-root hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div id="modalBackdrop" class="modal-backdrop"></div>
     <div id="modalCard" class="modal-card">
@@ -292,6 +230,6 @@ input.shake{ animation:shake .45s ease; }
     </div>
   </div>
 
-  <script src="app.js?v=24"></script>
+  <script src="app.js?v=35"></script>
 </body>
 </html>
