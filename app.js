@@ -322,7 +322,7 @@ updateStreakBadge();
 
   // Show modal AFTER we’ve written the streak, so it reflects the new number
   var baseMsg = "You have Crowdsense. Come back tomorrow for a new question.";
-  showModal("You revealed them all", baseMsg);
+  showModal("You got them all!", baseMsg);
 
   // --- add streak badge to modal ---
   try{
@@ -332,7 +332,7 @@ updateStreakBadge();
       els.modalBody.appendChild(document.createTextNode(" "));
       var badge = document.createElement("span");
       badge.className = "streak-badge-inline";
-      badge.textContent = "🔥 " + (sNow.count || nextCount);
+badge.textContent = "🔥 Your crowdsense streak: " + (sNow.count ?? nextCount);
       els.modalBody.appendChild(badge);
     }
   }catch(_){}
