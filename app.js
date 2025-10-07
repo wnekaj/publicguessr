@@ -245,10 +245,10 @@ function finishRound(reason){
   var q = QUESTIONS[idx];
   if (reason === "failed"){
     els.questionText.textContent = q.question + " - You're out of guesses!";
-    showModal("You're out of guesses!", "You have been defeated by the public. Try again tomorrow.");
+    showModal("You're out of guesses", "You have been defeated by the public. Try again tomorrow.");
   } else {
     els.questionText.textContent = q.question + " - All answers revealed!";
-    showModal("You revealed them all!", "You have Crowdsense. Come back tomorrow for a new question.");
+    showModal("You revealed them all", "You have Crowdsense. Come back tomorrow for a new question.");
   }
 
   if (DAILY_MODE){
