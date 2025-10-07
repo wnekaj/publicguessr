@@ -229,6 +229,8 @@ input.shake{ animation:shake .45s ease; }
   margin: 6px 0 2px;
 }
 
+.streak{ margin-left:6px; font-weight:800; color:#f59e0b; display:inline-flex; gap:4px; align-items:center; }
+.streak.hidden{ display:none!important; }
 
 
 
@@ -242,7 +244,10 @@ input.shake{ animation:shake .45s ease; }
 
 <div class="card" id="card">
 <p class="tagline">How well do you know the British public?</p>
-      <div class="datebar" id="dailyDate"></div>
+<div class="datebar">
+  <span id="dailyDate"></span>
+  <span id="streakBadge" class="streak hidden" aria-label="streak"></span>
+</div>
       <p class="subtitle" id="questionText">Loading...</p>
 
       <div class="row" style="margin-bottom:4px;">
