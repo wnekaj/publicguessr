@@ -299,7 +299,10 @@ function finishRound(reason){
     els.questionText.textContent = q.question + " - You're out of guesses!";
     showModal("You're out of guesses", "You have been defeated by the public. Try again tomorrow.");
     if (DAILY_MODE){
-      try{ localStorage.setItem("played-"+DAY_KEY, "1"); }catch(_){}
+      try{ localStorage.setItem("played-"+DAY_KEY, "1") 
+        writeStreak(0, DAY_KEY);
+updateStreakBadge();
+; }catch(_){}
     }
     // if you’re using streaks, you probably reset here:
     // writeStreak(0, DAY_KEY); updateStreakBadge();
@@ -339,19 +342,6 @@ function finishRound(reason){
     try{ localStorage.setItem("played-"+DAY_KEY, "1"); }catch(_){}
   }
 }
-
-   // --- streak logic (add this) ---
-  var s = readStreak();
-  if (reason === "failed"){
-    writeStreak(0, DAY_KEY);
-  } else {
-    var expectedPrev = getYesterdayKey(DAY_KEY);
-    var nextCount = (s.last === expectedPrev) ? (s.count + 1) : 1;
-    writeStreak(nextCount, DAY_KEY);
-  }
-  updateStreakBadge();
-  // --- end streak logic ---
-
 
 function reveal(i){
   var q = QUESTIONS[idx];
