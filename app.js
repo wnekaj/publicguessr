@@ -1,7 +1,21 @@
-// app.js — ASCII-only, no smart quotes
+// app.js — ASCII-only
 "use strict";
 
-console.log("Crowdsense app v35");
+console.log("Crowdsense app v40");
+
+// ===== fallback data (if sheet fails) =====
+var QUESTIONS = [
+  { question: "Name a bill people most worry about going up",
+    answers: [
+      { text: "Energy", aliases: ["gas","electric","electricity","power","heating"], score: 42 },
+      { text: "Rent", aliases: ["renting"], score: 18 },
+      { text: "Mortgage", aliases: ["mortgages"], score: 14 },
+      { text: "Water", aliases: ["water rates"], score: 10 },
+      { text: "Council Tax", aliases: ["council","local tax"], score: 9 },
+      { text: "Food", aliases: ["groceries","supermarket"], score: 5 }
+    ]
+  }
+];
 
 // ===== state =====
 var idx = 0, score = 0, revealed = new Set(), strikes = 0, endReason = "complete";
@@ -30,19 +44,9 @@ var els = {
   strikeToast: document.getElementById("strikeToast")
 };
 
-// ===== normalisation (robust) =====
+// ===== normalisation =====
 function norm(s){
   s = String(s || "");
-  // map common look-alikes to ASCII
-  var map = {
-    "\u0391": "a", "\u03B1": "a", // Greek Alpha
-    "\u0410": "a",               // Cyrillic A
-    "\u00A0": " ",               // NBSP
-    "\u2019": "'", "\u2018": "'",
-    "\u201C": "\"", "\u201D": "\""
-  };
-  s = s.replace(/[\u0391\u03B1\u0410\u00A0\u2019\u2018\u201C\u201D]/g, function(ch){ return map[ch] || " "; });
-
   return s
     .toLowerCase()
     .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
@@ -58,7 +62,7 @@ const DAILY_MODE = true;
 const DAILY_TZ   = "Europe/London";
 const MAX_ANSWERS = 5;
 const BLUR_ON_CORRECT = true;
-const GLOBAL_ANCHOR = "2025-07-09"; // fixed anchor so everyone sees the same question
+const GLOBAL_ANCHOR = "2025-07-09"; // fixed so everyone sees the same question
 
 function safeTZ(){
   var tz = DAILY_TZ || "Europe/London";
@@ -96,7 +100,7 @@ function startDailyTickerLondon(){
   _tickerId = setInterval(render, 1000);
 }
 
-// helpers for deterministic pick
+// deterministic pick helpers
 function ymdFromKey(key){ var p = key.split("-"); return { y:+p[0], m:+p[1], d:+p[2] }; }
 function daysFromYMD(y,m,d){ return Math.floor(Date.UTC(y, m-1, d) / 86400000); }
 function daysSince(aKey, bKey){
@@ -123,7 +127,7 @@ function pickIndexGlobal(qMap, todayKey){
   return qMap[pos].idx;
 }
 
-// ===== modal helpers =====
+// modal
 function showModal(title, message){
   if (!els.modal) return;
   els.modalTitle.textContent = title || "";
@@ -141,7 +145,7 @@ if (els.modalClose) els.modalClose.addEventListener("click", hideModal);
 if (els.modalBackdrop) els.modalBackdrop.addEventListener("click", hideModal);
 document.addEventListener("keydown", function(e){ if (e.key === "Escape") hideModal(); });
 
-// ===== email capture =====
+// email capture
 function handleEmailSubmit(e){
   if (!els.emailForm) return;
   e.preventDefault();
@@ -155,7 +159,7 @@ function handleEmailSubmit(e){
     .catch(function(){ els.emailMsg.textContent = "Sorry\u2014there was a problem. Please try again."; });
 }
 
-// ===== strikes UI =====
+// strikes UI
 function updateStrikes(){
   var dots = [els.strike1, els.strike2, els.strike3];
   for (var i=0;i<dots.length;i++){
@@ -189,47 +193,33 @@ function strikeFeedback(n){
   }
 }
 
-// ===== streaks/badges storage + UI =====
+// ===== minimal streak + badges =====
 function getJSON(k, d){ try{ var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(_){ return d; } }
 function setJSON(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); } catch(_){} }
 
-function getBadgeIcon(id){
-  if (id === "clutch") return "💪";
-  if (id === "clean-sweep") return "🧹";
-  if (id === "guru") return "🧠";
-  if (id.indexOf("streak-") === 0) return "🔥";
-  if (id === "immaculate-7") return "✨";
-  if (id === "week-participation") return "📅";
-  if (id.indexOf("month-participation-") === 0) return "🗓️";
-  return "🏅";
-}
-function getBadgeLabel(id){
-  if (id === "clutch") return "Clutch win (2 strikes)";
-  if (id === "clean-sweep") return "Clean sweep (0 strikes)";
-  if (id === "guru") return "Crowdsense Guru (first guess = top)";
-  if (id === "streak-3") return "Win streak 3";
-  if (id === "streak-7") return "Win streak 7";
-  if (id === "streak-14") return "Win streak 14";
-  if (id === "streak-30") return "Win streak 30";
-  if (id === "streak-60") return "Win streak 60";
-  if (id === "streak-90") return "Win streak 90";
-  if (id === "immaculate-7") return "Immaculate run (7 days, 0 strikes)";
-  if (id === "week-participation") return "Played 7 days (any result)";
-  if (id.indexOf("month-participation-") === 0) return "Played every day this month";
-  return id;
-}
-function awardBadge(id){
-  var all = getJSON("cs_badges", []);
-  if (!all.some(function(b){ return b.id === id; })){
-    all.push({ id:id, at: DAY_KEY });
-    setJSON("cs_badges", all);
-  }
+// Only two badge types:
+// - "win" (earned on any win, shown today only)
+// - "hot-streak" (earned when you set a new best streak >= 3)
+function awardToday(id, label, icon){
   var todayKey = getJSON("cs_badges_today_at", "");
   var today = getJSON("cs_badges_today", []);
   if (todayKey !== DAY_KEY){ today = []; }
-  if (today.indexOf(id) === -1){ today.push(id); }
+  var entry = icon + " " + label;
+  if (today.indexOf(entry) === -1){ today.push(entry); }
   setJSON("cs_badges_today_at", DAY_KEY);
   setJSON("cs_badges_today", today);
+}
+function renderBadgeRowForToday(){
+  if (!els.badgeRow) return;
+  var todayKey = getJSON("cs_badges_today_at", "");
+  var today = (todayKey === DAY_KEY) ? getJSON("cs_badges_today", []) : [];
+  els.badgeRow.innerHTML = "";
+  today.forEach(function(text){
+    var chip = document.createElement("span");
+    chip.className = "badge-item";
+    chip.textContent = text;
+    els.badgeRow.appendChild(chip);
+  });
 }
 function renderStreakPill(){
   if (!els.streakPill) return;
@@ -242,97 +232,25 @@ function renderStreakPill(){
     els.streakPill.style.display = "none";
   }
 }
-function renderBadgeRowForToday(){
-  if (!els.badgeRow) return;
-  var todayKey = getJSON("cs_badges_today_at", "");
-  var today = (todayKey === DAY_KEY) ? getJSON("cs_badges_today", []) : [];
-  els.badgeRow.innerHTML = "";
-  today.forEach(function(id){
-    var chip = document.createElement("span");
-    chip.className = "badge-item";
-    chip.textContent = getBadgeIcon(id) + " " + getBadgeLabel(id);
-    els.badgeRow.appendChild(chip);
-  });
-}
-
-function updateStreaksAndBadges(won, stats){
-  // stats: { strikes, firstGuessWasTop, topAnswerPct }
+function updateStreaksAndBadges(won){
   var cur = getJSON("cs_streak_current", 0);
   var best = getJSON("cs_streak_best", 0);
-  var days = getJSON("cs_days_played", []); // array of DAY_KEYs
-
-  // record participation day (win or lose)
-  if (days.indexOf(DAY_KEY) === -1){
-    days.push(DAY_KEY);
-    days.sort();
-    setJSON("cs_days_played", days);
-  }
 
   if (won){
-    cur += 1; if (cur > best) best = cur;
+    cur += 1; if (cur > best){ best = cur; }
     setJSON("cs_streak_current", cur);
     setJSON("cs_streak_best", best);
 
-    [3,7,14,30,60,90].forEach(function(n){ if (cur === n) awardBadge("streak-"+n); });
+    // Always award a simple Win badge (today only)
+    awardToday("win", "Win", "🏆");
 
-    if (stats.strikes === 0){
-      awardBadge("clean-sweep");
-      var ps = getJSON("cs_perfect_streak", 0) + 1;
-      setJSON("cs_perfect_streak", ps);
-      if (ps === 7) awardBadge("immaculate-7");
-    } else {
-      setJSON("cs_perfect_streak", 0);
+    // If new best and at least 3, award a Hot Streak badge (today only)
+    if (cur === best && best >= 3){
+      awardToday("hot-streak", "Hot streak " + best, "🔥");
     }
-
-    if (stats.strikes >= 2) awardBadge("clutch");
-    if (stats.firstGuessWasTop) awardBadge("guru");
   } else {
     setJSON("cs_streak_current", 0);
-    setJSON("cs_perfect_streak", 0);
   }
-
-  // Weekly participation: last 7 calendar days played (win/lose)
-  var sevenOk = true;
-  for (var i=0;i<7;i++){
-    var d = new Date(); d.setUTCDate(d.getUTCDate()-i);
-    var parts = new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/London",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(d);
-    var y="",m="",dd=""; for (var k=0;k<parts.length;k++){ var t=parts[k]; if(t.type==="year")y=t.value; else if(t.type==="month")m=t.value; else if(t.type==="day")dd=t.value; }
-    var key = y+"-"+m+"-"+dd;
-    if (days.indexOf(key) === -1){ sevenOk = false; break; }
-  }
-  if (sevenOk) awardBadge("week-participation");
-
-  // Monthly participation: every day of current month (granted on month end)
-  var now = new Date();
-  var tzParts = new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/London",year:"numeric",month:"2-digit"}).formatToParts(now);
-  var Y="", M=""; for (var p=0;p<tzParts.length;p++){ var t=tzParts[p]; if(t.type==="year")Y=t.value; else if(t.type==="month")M=t.value; }
-  var first = new Date(Date.UTC(+Y, +M-1, 1));
-  var nextMonth = new Date(Date.UTC(+Y, +M-1, 1)); nextMonth.setUTCMonth(nextMonth.getUTCMonth()+1);
-  var last = new Date(nextMonth - 86400000);
-
-  var monthComplete = true;
-  var d2 = new Date(first);
-  var stop = (now.getUTCDate() === last.getUTCDate()) ? new Date(last) : new Date(now);
-  while (d2 <= stop){
-    var pt = new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/London",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(d2);
-    var yy="",mm="",dd2=""; for (var u=0;u<pt.length;u++){ var tt=pt[u]; if(tt.type==="year")yy=tt.value; else if(tt.type==="month")mm=tt.value; else if(tt.type==="day")dd2=tt.value; }
-    var k2 = yy+"-"+mm+"-"+dd2;
-    if (days.indexOf(k2) === -1){ monthComplete = false; break; }
-    d2.setUTCDate(d2.getUTCDate()+1);
-  }
-  if (monthComplete){
-    awardBadge("month-participation-"+Y+"-"+M);
-  }
-}
-
-function buildBadgeListHTML(){
-  var todayKey = getJSON("cs_badges_today_at", "");
-  var today = (todayKey === DAY_KEY) ? getJSON("cs_badges_today", []) : [];
-  if (!today.length) return "";
-  var items = today.map(function(id){
-    return "<li>"+ getBadgeIcon(id) +" "+ getBadgeLabel(id) +"</li>";
-  }).join("");
-  return '<div style="margin-top:8px"><strong>Badges earned today:</strong><ul style="margin:6px 0 0 18px">'+items+'</ul></div>';
 }
 
 // ===== UI: render question =====
@@ -374,27 +292,17 @@ function finishRound(reason){
   var q = QUESTIONS[idx];
   var won = (reason !== "failed");
 
-  var stats = {
-    strikes: strikes,
-    firstGuessWasTop: window._firstGuessWasTop === true,
-    topAnswerPct: (q.answers[0] && typeof q.answers[0].score === "number") ? q.answers[0].score : null
-  };
-
-  updateStreaksAndBadges(won, stats);
+  updateStreaksAndBadges(won);
   renderStreakPill();
   renderBadgeRowForToday();
 
   if (!won){
     els.questionText.textContent = q.question + " - You're out of guesses!";
+    showModal("You're out of guesses!", "Try again tomorrow.");
   } else {
     els.questionText.textContent = q.question + " - All answers revealed!";
+    showModalHTML("You revealed them all!", "Nice work. Come back tomorrow for a new question.");
   }
-
-  var body = won
-    ? "You have Crowdsense. Come back tomorrow for a new question."
-    : "You have been defeated by the public. Try again tomorrow.";
-  var badgesHTML = buildBadgeListHTML();
-  showModalHTML(won ? "You have Crowdsense" : "You've been defeated by the public", body + badgesHTML);
 
   if (DAILY_MODE){
     try{ localStorage.setItem("played-"+DAY_KEY, "1"); }catch(_){}
@@ -436,7 +344,8 @@ function handleGuess(){
   if (!guess) return;
 
   var q = QUESTIONS[idx];
-  // mark first guess vs top
+
+  // track if first guess equals top answer (not used for badges now, but harmless to keep)
   if (!window._guessedOnce){
     window._guessedOnce = true;
     var top = (q.answers[0] || {}).text || "";
@@ -529,7 +438,6 @@ function loadViaGvizJSONP(publishedUrl,timeoutMs){
         try{
           if (!response || !response.table) throw new Error("No table");
           var cols = response.table.cols.map(function(c){ return (c && c.label ? String(c.label).trim().toLowerCase() : ""); });
-          var qi = cols.indexOf("question"), ai = cols.indexOf("answer"), si = cols.indexOf("score"), li = cols.indexOf("aliases"), di = cols.indexOf("date");
           var rows = [cols];
           response.table.rows.forEach(function(r){
             var vals = r.c.map(function(c){ return (c && c.v != null ? String(c.v) : ""); });
@@ -547,8 +455,6 @@ function loadViaGvizJSONP(publishedUrl,timeoutMs){
     }catch(e){ reject(e); }
   });
 }
-
-// optional date column support
 function normalizeDateYMD(s){
   s = String(s||"").trim();
   if (!s) return "";
