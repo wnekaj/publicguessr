@@ -294,17 +294,52 @@ function finishRound(reason){
   if (els.nextBtn) els.nextBtn.classList.add("hidden");
 
   var q = QUESTIONS[idx];
+
   if (reason === "failed"){
     els.questionText.textContent = q.question + " - You're out of guesses!";
     showModal("You're out of guesses", "You have been defeated by the public. Try again tomorrow.");
-  } else {
-    els.questionText.textContent = q.question + " - All answers revealed!";
-    showModal("You revealed them all", "You have Crowdsense. Come back tomorrow for a new question.");
+    if (DAILY_MODE){
+      try{ localStorage.setItem("played-"+DAY_KEY, "1"); }catch(_){}
+    }
+    // if you’re using streaks, you probably reset here:
+    // writeStreak(0, DAY_KEY); updateStreakBadge();
+    return;
   }
+
+  // Success path
+  els.questionText.textContent = q.question + " - All answers revealed!";
+
+  // --- streak logic (assumes readStreak/writeStreak/getYesterdayKey from earlier patch) ---
+  var s = (typeof readStreak === "function") ? readStreak() : { count:0, last:"" };
+  var expectedPrev = (typeof getYesterdayKey === "function") ? getYesterdayKey(DAY_KEY) : "";
+  var nextCount = (s.last === expectedPrev) ? (s.count + 1) : 1;
+  if (typeof writeStreak === "function") writeStreak(nextCount, DAY_KEY);
+  if (typeof updateStreakBadge === "function") updateStreakBadge();
+  // --- end streak logic ---
+
+  // Show modal AFTER we’ve written the streak, so it reflects the new number
+  var baseMsg = "You have Crowdsense. Come back tomorrow for a new question.";
+  showModal("You revealed them all", baseMsg);
+
+  // --- add streak badge to modal ---
+  try{
+    if (els.modalBody){
+      var sNow = (typeof readStreak === "function") ? readStreak() : { count: nextCount };
+      // Append a space + badge element inline
+      els.modalBody.appendChild(document.createTextNode(" "));
+      var badge = document.createElement("span");
+      badge.className = "streak-badge-inline";
+      badge.textContent = "🔥 " + (sNow.count || nextCount);
+      els.modalBody.appendChild(badge);
+    }
+  }catch(_){}
+  // --- end add streak badge ---
 
   if (DAILY_MODE){
     try{ localStorage.setItem("played-"+DAY_KEY, "1"); }catch(_){}
   }
+}
+
    // --- streak logic (add this) ---
   var s = readStreak();
   if (reason === "failed"){
