@@ -1,7 +1,9 @@
-// app.js — ASCII-only, no smart quotes, no backticks
+// app.js — ASCII-only, no smart quotes
 "use strict";
 
-// ===== sample fallback data =====
+console.log("Crowdsense app v35");
+
+// ===== fallback data (if sheet fails) =====
 var QUESTIONS = [
   { question: "Name a bill people most worry about going up",
     answers: [
@@ -22,22 +24,19 @@ var els = {
   board: document.getElementById("board"),
   input: document.getElementById("guessInput"),
   guessBtn: document.getElementById("guessBtn"),
-  // legacy (kept for compatibility even if hidden)
   nextBtn: document.getElementById("nextBtn"),
   score: document.getElementById("score"),
-  // strike dots
   strike1: document.getElementById("strike1"),
   strike2: document.getElementById("strike2"),
   strike3: document.getElementById("strike3"),
-  // modal
   modal: document.getElementById("modal"),
   modalTitle: document.getElementById("modalTitle"),
   modalBody: document.getElementById("modalBody"),
   modalClose: document.getElementById("modalClose"),
   modalBackdrop: document.getElementById("modalBackdrop"),
-  // date
   dailyDate: document.getElementById("dailyDate"),
-  // email + source + strike toast
+  streakPill: document.getElementById("streakPill"),
+  badgeRow: document.getElementById("badgeRow"),
   emailForm: document.getElementById("emailForm"),
   emailInput: document.getElementById("emailInput"),
   emailMsg: document.getElementById("emailMsg"),
@@ -45,20 +44,36 @@ var els = {
   strikeToast: document.getElementById("strikeToast")
 };
 
-function norm(s){ return s.toLowerCase().replace(/[^a-z0-9\s-]/g,"").trim(); }
+// ===== normalisation (robust) =====
+function norm(s){
+  s = String(s || "");
+  // map common look-alikes to ASCII
+  var map = {
+    "\u0391": "a", "\u03B1": "a", // Greek Alpha
+    "\u0410": "a",               // Cyrillic A
+    "\u00A0": " ",               // NBSP
+    "\u2019": "'", "\u2018": "'",
+    "\u201C": "\"", "\u201D": "\""
+  };
+  s = s.replace(/[\u0391\u03B1\u0410\u00A0\u2019\u2018\u201C\u201D]/g, function(ch){ return map[ch] || " "; });
 
-// ===== Daily Mode =====
+  return s
+    .toLowerCase()
+    .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, " and ")
+    .replace(/[-_/]/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// ===== daily mode / constants =====
 const DAILY_MODE = true;
-const DAILY_TZ   = "Europe/London"; // valid IANA tz
+const DAILY_TZ   = "Europe/London";
 const MAX_ANSWERS = 5;
 const BLUR_ON_CORRECT = true;
+const GLOBAL_ANCHOR = "2025-07-09"; // fixed anchor so everyone sees the same question
 
-
-
-// Global deterministic daily rotation anchor (everyone same question if no date column)
-const GLOBAL_ANCHOR = "2025-07-09"; // YYYY-MM-DD in Europe/London terms
-
-// Fallback if DAILY_TZ ever gets set to something invalid
 function safeTZ(){
   var tz = DAILY_TZ || "Europe/London";
   try { new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(new Date()); return tz; }
@@ -66,7 +81,6 @@ function safeTZ(){
 }
 
 var DAY_KEY = null;
-
 function getDayKey(){
   var now = new Date();
   var fmt = new Intl.DateTimeFormat("en-GB", { timeZone: safeTZ(), year:"numeric", month:"2-digit", day:"2-digit" });
@@ -80,30 +94,23 @@ function getDayKey(){
   return y+"-"+m+"-"+d;
 }
 
-// Live date + time ticker in Europe/London (24h, with seconds)
+// live date/time ticker
 var _tickerId = null;
 function startDailyTickerLondon(){
   if (!els.dailyDate) return;
   if (_tickerId) { clearInterval(_tickerId); _tickerId = null; }
-
   var tz = safeTZ();
-
   function render(){
     var now = new Date();
-    var dateStr = new Intl.DateTimeFormat("en-GB", {
-      timeZone: tz, day: "numeric", month: "short", year: "numeric"
-    }).format(now);
-    var timeStr = new Intl.DateTimeFormat("en-GB", {
-      timeZone: tz, hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit"
-    }).format(now);
-    els.dailyDate.textContent = "Daily · " + dateStr + " · " + timeStr;
+    var dateStr = new Intl.DateTimeFormat("en-GB", { timeZone: tz, day: "numeric", month: "short", year: "numeric" }).format(now);
+    var timeStr = new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(now);
+    els.dailyDate.textContent = "Daily \u00B7 " + dateStr + " \u00B7 " + timeStr;
   }
-
   render();
   _tickerId = setInterval(render, 1000);
 }
 
-// ----- helpers for deterministic/global pick -----
+// helpers for deterministic pick
 function ymdFromKey(key){ var p = key.split("-"); return { y:+p[0], m:+p[1], d:+p[2] }; }
 function daysFromYMD(y,m,d){ return Math.floor(Date.UTC(y, m-1, d) / 86400000); }
 function daysSince(aKey, bKey){
@@ -130,44 +137,39 @@ function pickIndexGlobal(qMap, todayKey){
   return qMap[pos].idx;
 }
 
-// ===== Modal helpers =====
+// ===== modal helpers =====
 function showModal(title, message){
   if (!els.modal) return;
   els.modalTitle.textContent = title || "";
   els.modalBody.textContent = message || "";
   els.modal.classList.remove("hidden");
 }
-function hideModal(){
+function showModalHTML(title, html){
   if (!els.modal) return;
-  els.modal.classList.add("hidden");
+  els.modalTitle.textContent = title || "";
+  els.modalBody.innerHTML = html || "";
+  els.modal.classList.remove("hidden");
 }
+function hideModal(){ if (!els.modal) return; els.modal.classList.add("hidden"); }
 if (els.modalClose) els.modalClose.addEventListener("click", hideModal);
 if (els.modalBackdrop) els.modalBackdrop.addEventListener("click", hideModal);
 document.addEventListener("keydown", function(e){ if (e.key === "Escape") hideModal(); });
 
-// ===== Email capture =====
+// ===== email capture =====
 function handleEmailSubmit(e){
   if (!els.emailForm) return;
   e.preventDefault();
   var email = (els.emailInput && els.emailInput.value || "").trim();
   if (!email) return;
-  els.emailMsg.textContent = "Submitting…";
+  els.emailMsg.textContent = "Submitting...";
   var fd = new FormData(els.emailForm);
   fetch(els.emailForm.action, { method:"POST", headers:{ "Accept":"application/json" }, body: fd })
-    .then(function(res){
-      if (res.ok) return res.json();
-      throw new Error("Subscribe failed");
-    })
-    .then(function(){
-      els.emailMsg.textContent = "Thanks! Check your inbox to confirm.";
-      try{ els.emailForm.reset(); }catch(_){}
-    })
-    .catch(function(){
-      els.emailMsg.textContent = "Sorry—there was a problem. Please try again.";
-    });
+    .then(function(res){ if (res.ok) return res.json(); throw new Error("Subscribe failed"); })
+    .then(function(){ els.emailMsg.textContent = "Thanks! Check your inbox to confirm."; try{ els.emailForm.reset(); }catch(_){ } })
+    .catch(function(){ els.emailMsg.textContent = "Sorry\u2014there was a problem. Please try again."; });
 }
 
-// ===== UI =====
+// ===== strikes UI =====
 function updateStrikes(){
   var dots = [els.strike1, els.strike2, els.strike3];
   for (var i=0;i<dots.length;i++){
@@ -176,37 +178,24 @@ function updateStrikes(){
     dots[i].style.opacity = (strikes > i ? 1 : 0.25);
   }
 }
-
 function ensureSourceNote(){
   var note = document.getElementById("sourceNote");
   if (!note) {
     note = document.createElement("p");
     note.id = "sourceNote";
     note.className = "source-note";
-    note.textContent = "Source: Public First Poll of 2,106 UK Adults from 9th Jul – 14th July 2025";
+    note.textContent = "Source: Public First Poll of 2,106 UK Adults from 9th Jul \u2013 14th July 2025";
   }
   els.board.insertAdjacentElement("afterend", note);
   els.sourceNote = note;
 }
-
-// clearer strike feedback
 function strikeFeedback(n){
   var dots = [els.strike1, els.strike2, els.strike3];
   var target = dots[n-1];
-
-  if (target){
-    target.classList.add("boom");
-    setTimeout(function(){ target.classList.remove("boom"); }, 600);
-  }
-  if (els.input){
-    els.input.classList.add("shake");
-    setTimeout(function(){ els.input.classList.remove("shake"); }, 450);
-  }
+  if (target){ target.classList.add("boom"); setTimeout(function(){ target.classList.remove("boom"); }, 600); }
+  if (els.input){ els.input.classList.add("shake"); setTimeout(function(){ els.input.classList.remove("shake"); }, 450); }
   var card = document.getElementById("card");
-  if (card){
-    card.classList.add("card-flash");
-    setTimeout(function(){ card.classList.remove("card-flash"); }, 300);
-  }
+  if (card){ card.classList.add("card-flash"); setTimeout(function(){ card.classList.remove("card-flash"); }, 300); }
   if (els.strikeToast){
     els.strikeToast.textContent = "Strike " + n + " of 3";
     els.strikeToast.classList.add("show");
@@ -214,6 +203,153 @@ function strikeFeedback(n){
   }
 }
 
+// ===== streaks/badges storage + UI =====
+function getJSON(k, d){ try{ var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(_){ return d; } }
+function setJSON(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); } catch(_){} }
+
+function getBadgeIcon(id){
+  if (id === "clutch") return "💪";
+  if (id === "clean-sweep") return "🧹";
+  if (id === "guru") return "🧠";
+  if (id.indexOf("streak-") === 0) return "🔥";
+  if (id === "immaculate-7") return "✨";
+  if (id === "week-participation") return "📅";
+  if (id.indexOf("month-participation-") === 0) return "🗓️";
+  return "🏅";
+}
+function getBadgeLabel(id){
+  if (id === "clutch") return "Clutch win (2 strikes)";
+  if (id === "clean-sweep") return "Clean sweep (0 strikes)";
+  if (id === "guru") return "Crowdsense Guru (first guess = top)";
+  if (id === "streak-3") return "Win streak 3";
+  if (id === "streak-7") return "Win streak 7";
+  if (id === "streak-14") return "Win streak 14";
+  if (id === "streak-30") return "Win streak 30";
+  if (id === "streak-60") return "Win streak 60";
+  if (id === "streak-90") return "Win streak 90";
+  if (id === "immaculate-7") return "Immaculate run (7 days, 0 strikes)";
+  if (id === "week-participation") return "Played 7 days (any result)";
+  if (id.indexOf("month-participation-") === 0) return "Played every day this month";
+  return id;
+}
+function awardBadge(id){
+  var all = getJSON("cs_badges", []);
+  if (!all.some(function(b){ return b.id === id; })){
+    all.push({ id:id, at: DAY_KEY });
+    setJSON("cs_badges", all);
+  }
+  var todayKey = getJSON("cs_badges_today_at", "");
+  var today = getJSON("cs_badges_today", []);
+  if (todayKey !== DAY_KEY){ today = []; }
+  if (today.indexOf(id) === -1){ today.push(id); }
+  setJSON("cs_badges_today_at", DAY_KEY);
+  setJSON("cs_badges_today", today);
+}
+function renderStreakPill(){
+  if (!els.streakPill) return;
+  var cur = getJSON("cs_streak_current", 0);
+  if (cur >= 2){
+    els.streakPill.textContent = "🔥 " + cur + " day streak";
+    els.streakPill.style.display = "inline-flex";
+  } else {
+    els.streakPill.textContent = "";
+    els.streakPill.style.display = "none";
+  }
+}
+function renderBadgeRowForToday(){
+  if (!els.badgeRow) return;
+  var todayKey = getJSON("cs_badges_today_at", "");
+  var today = (todayKey === DAY_KEY) ? getJSON("cs_badges_today", []) : [];
+  els.badgeRow.innerHTML = "";
+  today.forEach(function(id){
+    var chip = document.createElement("span");
+    chip.className = "badge-item";
+    chip.textContent = getBadgeIcon(id) + " " + getBadgeLabel(id);
+    els.badgeRow.appendChild(chip);
+  });
+}
+
+function updateStreaksAndBadges(won, stats){
+  // stats: { strikes, firstGuessWasTop, topAnswerPct }
+  var cur = getJSON("cs_streak_current", 0);
+  var best = getJSON("cs_streak_best", 0);
+  var days = getJSON("cs_days_played", []); // array of DAY_KEYs
+
+  // record participation day (win or lose)
+  if (days.indexOf(DAY_KEY) === -1){
+    days.push(DAY_KEY);
+    days.sort();
+    setJSON("cs_days_played", days);
+  }
+
+  if (won){
+    cur += 1; if (cur > best) best = cur;
+    setJSON("cs_streak_current", cur);
+    setJSON("cs_streak_best", best);
+
+    [3,7,14,30,60,90].forEach(function(n){ if (cur === n) awardBadge("streak-"+n); });
+
+    if (stats.strikes === 0){
+      awardBadge("clean-sweep");
+      var ps = getJSON("cs_perfect_streak", 0) + 1;
+      setJSON("cs_perfect_streak", ps);
+      if (ps === 7) awardBadge("immaculate-7");
+    } else {
+      setJSON("cs_perfect_streak", 0);
+    }
+
+    if (stats.strikes >= 2) awardBadge("clutch");
+    if (stats.firstGuessWasTop) awardBadge("guru");
+  } else {
+    setJSON("cs_streak_current", 0);
+    setJSON("cs_perfect_streak", 0);
+  }
+
+  // Weekly participation: last 7 calendar days played (win/lose)
+  var sevenOk = true;
+  for (var i=0;i<7;i++){
+    var d = new Date(); d.setUTCDate(d.getUTCDate()-i);
+    var parts = new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/London",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(d);
+    var y="",m="",dd=""; for (var k=0;k<parts.length;k++){ var t=parts[k]; if(t.type==="year")y=t.value; else if(t.type==="month")m=t.value; else if(t.type==="day")dd=t.value; }
+    var key = y+"-"+m+"-"+dd;
+    if (days.indexOf(key) === -1){ sevenOk = false; break; }
+  }
+  if (sevenOk) awardBadge("week-participation");
+
+  // Monthly participation: every day of current month (granted on month end)
+  var now = new Date();
+  var tzParts = new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/London",year:"numeric",month:"2-digit"}).formatToParts(now);
+  var Y="", M=""; for (var p=0;p<tzParts.length;p++){ var t=tzParts[p]; if(t.type==="year")Y=t.value; else if(t.type==="month")M=t.value; }
+  var first = new Date(Date.UTC(+Y, +M-1, 1));
+  var nextMonth = new Date(Date.UTC(+Y, +M-1, 1)); nextMonth.setUTCMonth(nextMonth.getUTCMonth()+1);
+  var last = new Date(nextMonth - 86400000);
+
+  var monthComplete = true;
+  var d2 = new Date(first);
+  var stop = (now.getUTCDate() === last.getUTCDate()) ? new Date(last) : new Date(now);
+  while (d2 <= stop){
+    var pt = new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/London",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(d2);
+    var yy="",mm="",dd2=""; for (var u=0;u<pt.length;u++){ var tt=pt[u]; if(tt.type==="year")yy=tt.value; else if(tt.type==="month")mm=tt.value; else if(tt.type==="day")dd2=tt.value; }
+    var k2 = yy+"-"+mm+"-"+dd2;
+    if (days.indexOf(k2) === -1){ monthComplete = false; break; }
+    d2.setUTCDate(d2.getUTCDate()+1);
+  }
+  if (monthComplete){
+    awardBadge("month-participation-"+Y+"-"+M);
+  }
+}
+
+function buildBadgeListHTML(){
+  var todayKey = getJSON("cs_badges_today_at", "");
+  var today = (todayKey === DAY_KEY) ? getJSON("cs_badges_today", []) : [];
+  if (!today.length) return "";
+  var items = today.map(function(id){
+    return "<li>"+ getBadgeIcon(id) +" "+ getBadgeLabel(id) +"</li>";
+  }).join("");
+  return '<div style="margin-top:8px"><strong>Badges earned today:</strong><ul style="margin:6px 0 0 18px">'+items+'</ul></div>';
+}
+
+// ===== UI: render question =====
 function renderQuestion(){
   var q = QUESTIONS[idx];
   endReason = "complete";
@@ -223,19 +359,26 @@ function renderQuestion(){
   strikes = 0; updateStrikes();
   if (els.nextBtn) els.nextBtn.classList.add("hidden");
   els.input.disabled = false; els.guessBtn.disabled = false;
-  els.input.value = ""; try{ els.input.focus(); }catch(_){}
-  if (els.score) els.score.textContent = "0%"; // if present
+  els.input.value = "";
+  try{ els.input.focus(); }catch(_){}
+  if (els.score) els.score.textContent = "0%";
 
   var count = Math.min(q.answers.length, MAX_ANSWERS);
   for (var i=0;i<count;i++){
     var tile = document.createElement("div");
     tile.className = "tile";
     tile.setAttribute("data-index", String(i));
-    tile.innerHTML = '<div class="fill"></div><div class="tile-content"><span class="answer">— — —</span><span class="points">??</span></div>';
+    tile.innerHTML = '<div class="fill"></div><div class="tile-content"><span class="answer">\u2014 \u2014 \u2014</span><span class="points">??</span></div>';
     els.board.appendChild(tile);
   }
 
+  // reset per-round flags
+  window._guessedOnce = false;
+  window._firstGuessWasTop = false;
+
   ensureSourceNote();
+  renderStreakPill();
+  renderBadgeRowForToday();
 }
 
 function finishRound(reason){
@@ -243,13 +386,29 @@ function finishRound(reason){
   if (els.nextBtn) els.nextBtn.classList.add("hidden");
 
   var q = QUESTIONS[idx];
-  if (reason === "failed"){
+  var won = (reason !== "failed");
+
+  var stats = {
+    strikes: strikes,
+    firstGuessWasTop: window._firstGuessWasTop === true,
+    topAnswerPct: (q.answers[0] && typeof q.answers[0].score === "number") ? q.answers[0].score : null
+  };
+
+  updateStreaksAndBadges(won, stats);
+  renderStreakPill();
+  renderBadgeRowForToday();
+
+  if (!won){
     els.questionText.textContent = q.question + " - You're out of guesses!";
-    showModal("You're out of guesses", "You have been defeated by the public. Try again tomorrow.");
   } else {
     els.questionText.textContent = q.question + " - All answers revealed!";
-    showModal("You revealed them all", "You have Crowdsense. Come back tomorrow for a new question.");
   }
+
+  var body = won
+    ? "You revealed them all. Come back tomorrow for a new question."
+    : "You have been defeated by the public. Try again tomorrow.";
+  var badgesHTML = buildBadgeListHTML();
+  showModalHTML(won ? "You revealed them all!" : "You're out of guesses!", body + badgesHTML);
 
   if (DAILY_MODE){
     try{ localStorage.setItem("played-"+DAY_KEY, "1"); }catch(_){}
@@ -291,34 +450,33 @@ function handleGuess(){
   if (!guess) return;
 
   var q = QUESTIONS[idx];
-  var foundIndex = -1;
+  // mark first guess vs top
+  if (!window._guessedOnce){
+    window._guessedOnce = true;
+    var top = (q.answers[0] || {}).text || "";
+    if (norm(raw) && norm(top) && norm(raw) === norm(top)){
+      window._firstGuessWasTop = true;
+    }
+  }
 
-  // Find first unrevealed match
-  for (var i=0; i<q.answers.length; i++){
+  var foundIndex = -1;
+  var visibleCount = Math.min(q.answers.length, els.board.children.length || MAX_ANSWERS);
+  for (var i=0; i<visibleCount; i++){
     if (revealed.has(i)) continue;
     var ans = q.answers[i];
     var candidates = [ans.text].concat(ans.aliases||[]).map(norm);
     if (candidates.indexOf(guess) !== -1){
-      foundIndex = i;
-      break;
+      foundIndex = i; break;
     }
   }
 
   if (foundIndex !== -1){
-    // Correct
     reveal(foundIndex);
-
-    // Hide the keyboard after this event finishes
-    if (BLUR_ON_CORRECT && els.input){
-      setTimeout(function(){ els.input.blur(); }, 0);
-    }
-
-    // Clear the field and STOP — do not fall into strike logic
+    if (BLUR_ON_CORRECT && els.input){ setTimeout(function(){ els.input.blur(); }, 0); }
     els.input.value = "";
     return;
   }
 
-  // Wrong
   strikes = Math.min(strikes+1, 3);
   updateStrikes();
   strikeFeedback(strikes);
@@ -328,8 +486,7 @@ function handleGuess(){
   }
 }
 
-
-// ===== Google Sheets loader (CSV first, GViz JSONP fallback) =====
+// ===== Google Sheets loader (CSV first, GViz fallback) =====
 var SHEET_PUBLISHED_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6_gEjPFb7k4tHmguxmp_4qHlObR7JAY5V1UtktCGS0BbfoehJd13fYv5iI4qZ1HjlEwkUxGqM0Aod/pubhtml";
 
 function normalizeToCSV(url){
@@ -386,8 +543,7 @@ function loadViaGvizJSONP(publishedUrl,timeoutMs){
         try{
           if (!response || !response.table) throw new Error("No table");
           var cols = response.table.cols.map(function(c){ return (c && c.label ? String(c.label).trim().toLowerCase() : ""); });
-          var qi = cols.indexOf("question"), ai = cols.indexOf("answer"), si = cols.indexOf("score"), li = cols.indexOf("aliases");
-          if (qi<0 || ai<0 || si<0) throw new Error("Missing headers");
+          var qi = cols.indexOf("question"), ai = cols.indexOf("answer"), si = cols.indexOf("score"), li = cols.indexOf("aliases"), di = cols.indexOf("date");
           var rows = [cols];
           response.table.rows.forEach(function(r){
             var vals = r.c.map(function(c){ return (c && c.v != null ? String(c.v) : ""); });
@@ -406,15 +562,15 @@ function loadViaGvizJSONP(publishedUrl,timeoutMs){
   });
 }
 
-// ---- optional date column support ----
+// optional date column support
 function normalizeDateYMD(s){
   s = String(s||"").trim();
   if (!s) return "";
-  var m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s); // YYYY-MM-DD
+  var m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
   if (m) return m[1] + "-" + m[2].padStart(2,"0") + "-" + m[3].padStart(2,"0");
-  m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);   // DD/MM/YYYY
+  m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
   if (m) return m[3] + "-" + m[2].padStart(2,"0") + "-" + m[1].padStart(2,"0");
-  var t = Date.parse(s);                            // e.g. "9 Jul 2025"
+  var t = Date.parse(s);
   if (!isNaN(t)){
     var d = new Date(t);
     var parts = new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/London",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(d);
@@ -428,13 +584,11 @@ function normalizeDateYMD(s){
   }
   return "";
 }
-
 function rowsToQA(rows){
   var header = rows[0].map(function(h){ return String(h||"").trim().toLowerCase(); });
   var di = header.indexOf("date");
   var qi = header.indexOf("question"), ai = header.indexOf("answer"), si = header.indexOf("score"), li = header.indexOf("aliases");
   if (qi<0 || ai<0 || si<0) throw new Error("Missing required headers");
-
   var byKey = new Map();
   rows.slice(1).forEach(function(row){
     if (!row || !row.length) return;
@@ -445,25 +599,22 @@ function rowsToQA(rows){
     var sNum  = Number(sText.replace(/[^0-9.+-]/g,""));
     var l     = li>=0 ? (row[li]||"") : "";
     if (!q || !a) return;
-
     var key = (dt||"") + "||" + q;
     if (!byKey.has(key)) byKey.set(key, { date: dt, question: q, answers: [] });
     byKey.get(key).answers.push({
       text:a,
       score: isFinite(sNum)?sNum:0,
-      aliases: l.split("|").map(function(x){return x.trim();}).filter(function(x){return !!x;})
+      aliases: l.split(/[\|,]/).map(function(x){return x.trim();}).filter(function(x){return !!x;})
     });
   });
-
   var out = [];
   byKey.forEach(function(block){
     block.answers.sort(function(x,y){ return y.score - x.score; });
-    out.push(block); // { date, question, answers }
+    out.push(block);
   });
   if (!out.length) throw new Error("Parsed 0 questions");
   return out;
 }
-
 function loadQuestions(){
   return loadViaCSV(SHEET_PUBLISHED_URL)
     .then(function(rows){ var out = rowsToQA(rows); console.log("Loaded "+out.length+" questions via CSV"); return out; })
@@ -487,13 +638,12 @@ function loadQuestions(){
 
     DAY_KEY = getDayKey();
 
-    // Prefer sheet-driven date selection if present
+    // Prefer sheet-driven date if present
     var todays = (QUESTIONS || []).filter(function(q){ return (q.date || "") === DAY_KEY; });
     if (DAILY_MODE && todays.length){
       QUESTIONS = todays;
       idx = 0;
-    } else if (DAILY_MODE) {
-      // fallback: deterministic global pick (same for everyone)
+    } else if (DAILY_MODE){
       var qMap = buildQuestionMap();
       idx = pickIndexGlobal(qMap, DAY_KEY);
     } else {
@@ -502,14 +652,18 @@ function loadQuestions(){
 
     startDailyTickerLondon();
     renderQuestion();
+    renderStreakPill();
+    renderBadgeRowForToday();
   }).catch(function(err){
     console.error("Init failed", err);
     startDailyTickerLondon();
     renderQuestion();
+    renderStreakPill();
+    renderBadgeRowForToday();
   });
 })();
 
 // ===== events =====
-els.guessBtn.addEventListener("click", handleGuess);
-els.input.addEventListener("keydown", function(e){ if (e.key === "Enter") handleGuess(); });
+if (els.guessBtn) els.guessBtn.addEventListener("click", handleGuess);
+if (els.input) els.input.addEventListener("keydown", function(e){ if (e.key === "Enter") handleGuess(); });
 if (els.emailForm) els.emailForm.addEventListener("submit", handleEmailSubmit);
