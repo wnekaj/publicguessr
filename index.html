@@ -181,15 +181,41 @@ input.shake{ animation:shake .45s ease; }
   border-color:rgba(239,68,68,.7);
   opacity:1;
 }
+
+    /* Header brand (now the main title) */
+.brand{
+  font-weight:800;
+  letter-spacing:.2px;
+  color: var(--accent);                 /* orange */
+  font-size: clamp(22px, 3.5vw, 30px);  /* big, responsive */
+}
+
+/* Tagline inside the card */
+.tagline{
+  color: var(--accent);
+  font-weight: 800;
+  text-align: center;
+  /* was clamp(12px, 2.8vw, 14px) */
+  font-size: clamp(14px, 4vw, 18px);
+  line-height: 1.25;         /* tidy two-line wrap */
+  white-space: normal;        /* allow wrapping */
+  overflow: visible;
+  text-overflow: clip;
+  margin: 6px 0 2px;
+}
+
+
     
   </style>
 </head>
 <body>
   <div class="app">
-    <header class="sitebar"><div class="brand">Can you guess what the British public thinks?</div></header>
+<header class="sitebar">
+  <div class="brand">Crowdsense</div>
+</header>
 
 <div class="card" id="card">
-      <h1 class="title">Crowdsense</h1>
+<p class="tagline">How well do you know the British public?</p>
       <div class="datebar" id="dailyDate"></div>
       <p class="subtitle" id="questionText">Loading...</p>
 
