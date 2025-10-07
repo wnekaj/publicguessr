@@ -87,6 +87,26 @@ function getYesterdayKey(key){
   return d.toISOString().slice(0,10);
 }
 
+function getYesterdayKey(key){
+  var p = key.split("-").map(Number);
+  var d = new Date(Date.UTC(p[0], p[1]-1, p[2]));
+  d.setUTCDate(d.getUTCDate()-1);
+  return d.toISOString().slice(0,10);
+}
+
+function resetStreakIfSkippedDay(){
+  // requires readStreak()/writeStreak() from the streak patch we added earlier
+  var s = readStreak ? readStreak() : {count:0,last:""};
+  if (!s.count) return;
+
+  var y = getYesterdayKey(DAY_KEY);
+  // If the last win wasn’t yesterday or today, the run was broken by a skipped day.
+  if (s.last !== DAY_KEY && s.last !== y){
+    writeStreak(0, s.last);
+  }
+}
+
+
 function readStreak(){
   var c = parseInt(localStorage.getItem("streakCount")||"0",10);
   var last = localStorage.getItem("lastWinDate")||"";
@@ -528,6 +548,7 @@ function loadQuestions(){
     }
 
     DAY_KEY = getDayKey();
+    resetStreakIfSkippedDay();
 
     // Prefer sheet-driven date selection if present
     var todays = (QUESTIONS || []).filter(function(q){ return (q.date || "") === DAY_KEY; });
