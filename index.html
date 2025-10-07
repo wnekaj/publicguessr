@@ -31,7 +31,6 @@
     }
     .card{background:var(--card);border:1px solid #e5e7eb;border-radius:16px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.06)}
 
-    /* Tagline inside card, same colour as answers */
     .tagline{
       color:var(--text);
       font-weight:800;
@@ -52,19 +51,32 @@
       border-radius:9999px;font-weight:700;font-size:12px;line-height:1;
     }
 
+    /* Today’s badges row (tiny chips) */
+    .badge-row{
+      display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;
+      min-height:20px;margin:4px 0 4px;font-size:12px;
+    }
+    .badge-item{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:2px 8px;border:1px solid #e5e7eb;background:#fff;border-radius:9999px;color:#111827;
+    }
+
     .subtitle{color:var(--muted);margin:0 0 12px;text-align:center;font-size:14px}
 
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    /* Input row: keep on one line even on phones */
+    .row{
+      display:flex;gap:8px;align-items:center;flex-wrap:nowrap;
+    }
     input[type="text"]{
-      flex:1 1 280px;font-size:18px;padding:12px 14px;border-radius:12px;border:1px solid #e5e7eb;background:#fff;color:var(--text);
+      flex:1 1 auto;min-width:0;
+      font-size:18px;padding:12px 14px;border-radius:12px;border:1px solid #e5e7eb;background:#fff;color:var(--text);
       outline:none;transition:box-shadow .2s ease,border-color .2s ease
     }
-    /* smaller placeholder */
     input[type="text"]::placeholder{font-size:14px;color:#9ca3af}
     input[type="text"]:focus{border-color:#fdba74;box-shadow:0 0 0 4px rgba(249,115,22,.15)}
 
-    /* Buttons (Submit + Subscribe share this spec) */
     button{
+      flex:0 0 auto;
       border:2px solid var(--accent);
       border-radius:12px;
       padding:12px 16px;
@@ -76,6 +88,7 @@
       transition:transform .05s ease-in-out, box-shadow .2s ease, background .15s ease, border-color .15s ease;
       box-shadow:0 2px 6px rgba(0,0,0,.05);
       font-family:inherit;
+      white-space:nowrap;
     }
     button:hover{
       transform:translateY(-1px);
@@ -84,6 +97,12 @@
       border-color:#f59e0b;
     }
     button:active{ transform:translateY(0); box-shadow:0 2px 6px rgba(0,0,0,.06); }
+
+    /* Slightly tighter on very small screens so it still fits */
+    @media (max-width:360px){
+      input[type="text"]{ padding:10px 12px; font-size:16px; }
+      button{ padding:10px 12px; font-size:15px; }
+    }
 
     /* Centered strike bar */
     .strikebar{ display:flex; gap:16px; margin:8px 0 4px; align-items:center; justify-content:center; }
@@ -95,16 +114,6 @@
     }
     .strike-dot.active{opacity:1; transform:scale(1.05);}
 
-    /* Today’s badges row */
-    .badge-row{
-      display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;
-      min-height:20px;margin:4px 0 4px;font-size:12px;
-    }
-    .badge-item{
-      display:inline-flex;align-items:center;gap:6px;
-      padding:2px 8px;border:1px solid #e5e7eb;background:#fff;border-radius:9999px;color:#111827;
-    }
-
     .board{display:grid;grid-template-columns:1fr;gap:10px;margin:12px 0 16px}
 
     /* Tiles (slightly shorter) */
@@ -115,16 +124,13 @@
       display:flex;align-items:center;justify-content:space-between;font-weight:800;
       transition:box-shadow .2s ease,border-color .2s ease
     }
-    .tile .fill{
-      position:absolute;left:0;top:0;height:100%;width:0%;
-      background:rgba(249,115,22,.18);transition:width 850ms ease-out
-    }
+    .tile .fill{ position:absolute;left:0;top:0;height:100%;width:0%;background:rgba(249,115,22,.18);transition:width 850ms ease-out }
     .tile .tile-content{ position:relative;z-index:2;width:100%;display:flex;align-items:center;justify-content:space-between }
     .tile.revealed{background:#fff4e6;border-color:#fdba74;box-shadow:0 6px 16px rgba(249,115,22,.12)}
     .answer{text-transform:uppercase;letter-spacing:.5px}
     .points{color:#f97316;font-variant-numeric:tabular-nums;letter-spacing:.2px;margin-left:8px}
 
-    .hud{display:none} /* keep for JS compatibility */
+    .hud{display:none}
 
     /* Modal */
     .modal-root{position:fixed;inset:0;z-index:50}
@@ -150,7 +156,7 @@
     }
     .email-form input[type="email"]:focus{ border-color:#fdba74; box-shadow:0 0 0 4px rgba(249,115,22,.15); }
 
-    /* Strike feedback: toast + animations */
+    /* Strike feedback */
     .strike-toast{
       display:flex; justify-content:center;
       font-size:12px; color:#991b1b;
@@ -208,7 +214,7 @@
 
       <form id="emailForm" class="email-form" action="https://formspree.io/f/mgvnzepd" method="POST">
         <input id="emailInput" name="email" type="email" placeholder="Get tomorrow's question by email" required autocomplete="email" />
-        <button type="submit" class="">Subscribe</button>
+        <button type="submit">Subscribe</button>
         <span id="emailMsg" class="email-msg" role="status" aria-live="polite"></span>
       </form>
 
@@ -230,6 +236,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=35"></script>
+  <script src="app.js?v=40"></script>
 </body>
 </html>
