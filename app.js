@@ -351,7 +351,7 @@ function finishRound(reason){
   }
   updateStreakBadge();
   // --- end streak logic ---
-}
+
 
 function reveal(i){
   var q = QUESTIONS[idx];
