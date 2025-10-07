@@ -40,6 +40,13 @@
     .datebar{color:var(--muted);text-align:center;font-size:12px;margin:0 0 6px}
     .subtitle{color:var(--muted);margin:0 0 12px;text-align:center;font-size:14px}
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+    @media (max-width: 420px){
+  .row{ flex-wrap: nowrap; }
+  #guessInput{ flex: 1 1 auto; min-width: 0; }
+  #guessBtn{ flex: 0 0 auto; }
+}
+
     input[type="text"]{
       flex:1 1 280px;font-size:18px;padding:12px 14px;border-radius:12px;border:1px solid #e5e7eb;background:#fff;color:var(--text);
       outline:none;transition:box-shadow .2s ease,border-color .2s ease
