@@ -332,7 +332,7 @@ updateStreakBadge();
       els.modalBody.appendChild(document.createTextNode(" "));
       var badge = document.createElement("span");
       badge.className = "streak-badge-inline";
-badge.textContent = "🔥 Your crowdsense streak: " + (sNow.count ?? nextCount);
+badge.textContent = "🔥 Your streak: " + (sNow.count ?? nextCount);
       els.modalBody.appendChild(badge);
     }
   }catch(_){}
