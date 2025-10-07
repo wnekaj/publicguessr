@@ -3,20 +3,6 @@
 
 console.log("Crowdsense app v35");
 
-// ===== fallback data (if sheet fails) =====
-var QUESTIONS = [
-  { question: "Name a bill people most worry about going up",
-    answers: [
-      { text: "Energy", aliases: ["gas","electric","electricity","power","heating"], score: 42 },
-      { text: "Rent", aliases: ["renting"], score: 18 },
-      { text: "Mortgage", aliases: ["mortgages"], score: 14 },
-      { text: "Water", aliases: ["water rates"], score: 10 },
-      { text: "Council Tax", aliases: ["council","local tax"], score: 9 },
-      { text: "Food", aliases: ["groceries","supermarket"], score: 5 }
-    ]
-  }
-];
-
 // ===== state =====
 var idx = 0, score = 0, revealed = new Set(), strikes = 0, endReason = "complete";
 var els = {
@@ -405,10 +391,10 @@ function finishRound(reason){
   }
 
   var body = won
-    ? "You revealed them all. Come back tomorrow for a new question."
+    ? "You have Crowdsense. Come back tomorrow for a new question."
     : "You have been defeated by the public. Try again tomorrow.";
   var badgesHTML = buildBadgeListHTML();
-  showModalHTML(won ? "You revealed them all!" : "You're out of guesses!", body + badgesHTML);
+  showModalHTML(won ? "You have Crowdsense" : "You've been defeated by the public", body + badgesHTML);
 
   if (DAILY_MODE){
     try{ localStorage.setItem("played-"+DAY_KEY, "1"); }catch(_){}
